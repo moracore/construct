@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { getAllExercises, saveWorkout } from '../db'
+import { useNavigate, useLocation, useParams, Link } from 'react-router-dom'
+import { getAllExercises, saveWorkout, getWorkout } from '../db'
 import { type Exercise, type Workout } from '../types'
 
 function generateId() {
@@ -41,6 +41,7 @@ interface LocationState {
 export default function WorkoutCreator() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { id } = useParams<{ id: string }>()
 
   const [name, setName] = useState('')
   const [color, setColor] = useState('#0080FF')
@@ -50,6 +51,7 @@ export default function WorkoutCreator() {
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [createdAt, setCreatedAt] = useState(Date.now())
 
   const loadExercises = useCallback(async () => {
     const all = await getAllExercises()
@@ -59,7 +61,18 @@ export default function WorkoutCreator() {
 
   useEffect(() => {
     loadExercises()
-  }, [loadExercises])
+    if (id) {
+      getWorkout(id).then((w) => {
+        if (w) {
+          setName(w.name)
+          setColor(w.color)
+          setCategory(w.category || '')
+          setSelectedIds(w.exerciseIds)
+          if (w.createdAt) setCreatedAt(w.createdAt)
+        }
+      })
+    }
+  }, [loadExercises, id])
 
   // Auto-select newly created exercise when returning from ExerciseCreator
   useEffect(() => {
@@ -84,12 +97,12 @@ export default function WorkoutCreator() {
     if (selectedIds.length === 0) { setError('Add at least one exercise'); return }
     setSaving(true)
     const workout: Workout = {
-      id: generateId(),
+      id: id || generateId(),
       name: name.trim(),
       exerciseIds: selectedIds,
       color,
       category,
-      createdAt: Date.now(),
+      createdAt: createdAt,
     }
     await saveWorkout(workout)
     navigate('/library')
@@ -105,7 +118,7 @@ export default function WorkoutCreator() {
         <button className="btn btn-ghost btn-icon" onClick={() => navigate('/library')}>
           <BackIcon />
         </button>
-        <h1>New Workout</h1>
+        <h1>{id ? 'Edit Workout' : 'New Workout'}</h1>
         <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
           <CheckIcon /> Save
         </button>
@@ -188,7 +201,7 @@ export default function WorkoutCreator() {
             </p>
             <Link
               to="/exercises/new"
-              state={{ returnTo: '/workouts/new' }}
+              state={{ returnTo: `/workouts/${id ? id : 'new'}` }}
               className="btn btn-ghost btn-sm"
               style={{ gap: 4, padding: '4px 8px' }}
             >
@@ -201,7 +214,7 @@ export default function WorkoutCreator() {
               <p style={{ marginBottom: 8 }}>No exercises yet</p>
               <Link
                 to="/exercises/new"
-                state={{ returnTo: '/workouts/new' }}
+                state={{ returnTo: `/workouts/${id ? id : 'new'}` }}
                 className="btn btn-primary btn-sm"
               >
                 <PlusIcon /> Create First Exercise

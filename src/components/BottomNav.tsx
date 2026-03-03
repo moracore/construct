@@ -3,8 +3,11 @@ import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 
 const HomeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <polyline points="9 22 9 12 15 12 15 22" />
+    <path d="M8 2v4"/>
+    <path d="M16 2v4"/>
+    <rect width="18" height="18" x="3" y="4" rx="2"/>
+    <path d="M3 10h18"/>
+    <path d="m9 16 2 2 4-4"/>
   </svg>
 )
 
@@ -18,16 +21,19 @@ const PlusCircleIcon = () => (
 
 const DumbbellIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6.5 6.5h11" /><path d="M6.5 17.5h11" />
-    <path d="M6 2v20M18 2v20" />
-    <path d="M3 7.5h3M3 16.5h3M18 7.5h3M18 16.5h3" />
+    <path d="M12 11.4V9.1"/>
+    <path d="m12 17 6.59-6.59"/>
+    <path d="m15.05 5.7-.218-.691a3 3 0 0 0-5.663 0L4.418 19.695A1 1 0 0 0 5.37 21h13.253a1 1 0 0 0 .951-1.31L18.45 16.2"/>
+    <circle cx="20" cy="9" r="2"/>
   </svg>
 )
 
 const LibraryIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    <path d="m16 6 4 14"/>
+    <path d="M12 6v14"/>
+    <path d="M8 8v12"/>
+    <path d="M4 4v16"/>
   </svg>
 )
 

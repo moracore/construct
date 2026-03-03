@@ -36,6 +36,8 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/exercises/new" element={<ExerciseCreator />} />
         <Route path="/workouts/new" element={<WorkoutCreator />} />
+        <Route path="/exercises/:id" element={<ExerciseCreator />} />
+        <Route path="/workouts/:id" element={<WorkoutCreator />} />
       </Routes>
       <RestTimer />
       <BottomNav />

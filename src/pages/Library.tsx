@@ -278,7 +278,11 @@ export default function Library() {
                 ) : <h3>No results for "{search}"</h3>}
               </div>
             ) : filteredWo.map((wo) => (
-              <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div 
+                key={wo.id} 
+                onClick={() => navigate(`/workouts/${wo.id}`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+              >
                 <div style={{ width: 4, height: 44, borderRadius: 2, background: wo.color, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500, fontSize: 15 }}>{wo.name}</div>
@@ -286,7 +290,7 @@ export default function Library() {
                     {[wo.category, `${wo.exerciseIds.length} exercise${wo.exerciseIds.length !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
                   </div>
                 </div>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDeleteWorkout(wo.id, wo.name)} style={{ color: 'var(--text-muted)' }}>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={(e) => { e.stopPropagation(); handleDeleteWorkout(wo.id, wo.name); }} style={{ color: 'var(--text-muted)' }}>
                   <TrashIcon />
                 </button>
               </div>
@@ -308,7 +312,11 @@ export default function Library() {
                 ) : <h3>No results for "{search}"</h3>}
               </div>
             ) : filteredEx.map((ex) => (
-              <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div 
+                key={ex.id} 
+                onClick={() => navigate(`/exercises/${ex.id}`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     {ex.name}
@@ -320,7 +328,7 @@ export default function Library() {
                     {ex.secondaryMuscleGroups.length > 0 && <span style={{ opacity: 0.7 }}> · {ex.secondaryMuscleGroups.join(', ')}</span>}
                   </div>
                 </div>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDeleteExercise(ex.id, ex.name)} style={{ color: 'var(--text-muted)' }}>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={(e) => { e.stopPropagation(); handleDeleteExercise(ex.id, ex.name); }} style={{ color: 'var(--text-muted)' }}>
                   <TrashIcon />
                 </button>
               </div>

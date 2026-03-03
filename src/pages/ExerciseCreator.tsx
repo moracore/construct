@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { saveExercise } from '../db'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation, useParams } from 'react-router-dom'
+import { saveExercise, getExercise } from '../db'
 import { type MuscleGroup, type Exercise } from '../types'
 import MuscleGroupSelector from '../components/MuscleGroupSelector'
 
@@ -23,6 +23,7 @@ const CheckIcon = () => (
 export default function ExerciseCreator() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { id } = useParams<{ id: string }>()
   const returnTo = (location.state as { returnTo?: string })?.returnTo ?? '/library'
 
   const [name, setName] = useState('')
@@ -33,6 +34,23 @@ export default function ExerciseCreator() {
   const [restSeconds, setRestSeconds] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [createdAt, setCreatedAt] = useState(Date.now())
+
+  useEffect(() => {
+    if (id) {
+      getExercise(id).then((ex) => {
+        if (ex) {
+          setName(ex.name)
+          setIsBodyweight(ex.isBodyweight)
+          setIsDoubleComponent(ex.isDoubleComponent)
+          setPrimary(ex.primaryMuscleGroups)
+          setSecondary(ex.secondaryMuscleGroups)
+          setRestSeconds(ex.defaultRestTimerSeconds ? String(ex.defaultRestTimerSeconds) : '')
+          if (ex.createdAt) setCreatedAt(ex.createdAt)
+        }
+      })
+    }
+  }, [id])
 
   async function handleSave() {
     if (!name.trim()) { setError('Exercise name is required'); return }
@@ -40,14 +58,14 @@ export default function ExerciseCreator() {
 
     setSaving(true)
     const exercise: Exercise = {
-      id: generateId(),
+      id: id || generateId(),
       name: name.trim(),
       isBodyweight,
       isDoubleComponent,
       primaryMuscleGroups,
       secondaryMuscleGroups,
       defaultRestTimerSeconds: restSeconds ? parseInt(restSeconds) : undefined,
-      createdAt: Date.now(),
+      createdAt: createdAt,
     }
     await saveExercise(exercise)
     navigate(returnTo, { state: { newExerciseId: exercise.id } })
@@ -59,7 +77,7 @@ export default function ExerciseCreator() {
         <button className="btn btn-ghost btn-icon" onClick={() => navigate(returnTo)}>
           <BackIcon />
         </button>
-        <h1>New Exercise</h1>
+        <h1>{id ? 'Edit Exercise' : 'New Exercise'}</h1>
         <button
           className="btn btn-primary btn-sm"
           onClick={handleSave}
