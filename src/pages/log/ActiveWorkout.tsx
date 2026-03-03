@@ -61,10 +61,11 @@ function emptyPending(): PendingSet {
 function prefillFromLast(last: SessionSet, ex: SessionExercise): PendingSet {
   if (ex.isDoubleComponent) {
     return {
-      weight: '', reps: '',
-      leftWeight: last.leftWeight?.toString() ?? '',
+      weight: last.weight?.toString() ?? last.leftWeight?.toString() ?? '', 
+      reps: '',
+      leftWeight: '',
       leftReps: last.leftReps?.toString() ?? last.reps.toString(),
-      rightWeight: last.rightWeight?.toString() ?? '',
+      rightWeight: '',
       rightReps: last.rightReps?.toString() ?? last.reps.toString(),
     }
   }
@@ -93,8 +94,7 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
       if (!lr && !rr) return
       onLog({
         reps: Math.max(lr, rr),
-        leftWeight: v.leftWeight ? parseFloat(v.leftWeight) : undefined,
-        rightWeight: v.rightWeight ? parseFloat(v.rightWeight) : undefined,
+        weight: v.weight ? parseFloat(v.weight) : undefined,
         leftReps: lr || undefined,
         rightReps: rr || undefined,
         loggedAt: Date.now(),
@@ -128,14 +128,15 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
 
       {ex.isDoubleComponent ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+          {!ex.isBodyweight
+            ? inp('kg', 'weight', 60)
+            : <span style={{ width: 60, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>BW</span>
+          }
+          <span style={{ width: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
-          {!ex.isBodyweight && inp('kg', 'leftWeight', 60)}
-          <span style={{ width: 18, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
           {inp('reps', 'leftReps', 44)}
-          <span style={{ width: 14, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+          <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
-          {!ex.isBodyweight && inp('kg', 'rightWeight', 60)}
-          <span style={{ width: 18, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
           {inp('reps', 'rightReps', 44)}
         </div>
       ) : (
@@ -167,19 +168,19 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight }: { set: Session
     </span>
   )
 
+  const w = set.weight ?? set.leftWeight
+
   return (
     <div className="set-logged-row">
       <span className="set-number">Set {number}</span>
       {isDoubleComponent ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+          {cell(isBodyweight ? (w ? `BW+${w}kg` : 'BW') : `${w ?? '—'}kg`, 60)}
+          {cell('×', 16, true)}
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
-          {!isBodyweight && cell(set.leftWeight != null ? `${set.leftWeight}kg` : '—', 60)}
-          {cell('×', 18, true)}
           {cell(set.leftReps ?? set.reps, 44)}
-          <span style={{ width: 14, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+          <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
-          {!isBodyweight && cell(set.rightWeight != null ? `${set.rightWeight}kg` : '—', 60)}
-          {cell('×', 18, true)}
           {cell(set.rightReps ?? set.reps, 44)}
         </div>
       ) : (
