@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, useLocation, useParams, Link } from 'react-router-dom'
+import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { getAllExercises, saveWorkout, getWorkout } from '../db'
 import { type Exercise, type Workout } from '../types'
 
@@ -31,7 +31,6 @@ const SearchIcon = () => (
 const PRESET_COLORS = [
   '#0080FF', '#FF4444', '#FF8800', '#FFCC00',
   '#44BB66', '#00BBCC', '#AA44FF', '#FF44AA',
-  '#FF6B35', '#4ECDC4', '#45B7D1', '#96CEB4',
 ]
 
 interface LocationState {
@@ -61,7 +60,20 @@ export default function WorkoutCreator() {
 
   useEffect(() => {
     loadExercises()
-    if (id) {
+    const draftStr = sessionStorage.getItem('workoutDraft')
+    
+    if (draftStr) {
+      try {
+        const draft = JSON.parse(draftStr)
+        if (draft.name) setName(draft.name)
+        if (draft.color) setColor(draft.color)
+        if (draft.category) setCategory(draft.category)
+        if (draft.selectedIds) setSelectedIds(draft.selectedIds)
+      } catch (e) {
+        console.error('Failed to parse draft', e)
+      }
+      sessionStorage.removeItem('workoutDraft')
+    } else if (id) {
       getWorkout(id).then((w) => {
         if (w) {
           setName(w.name)
@@ -85,6 +97,11 @@ export default function WorkoutCreator() {
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.state, location.pathname, navigate])
+
+  function handleNewExercise() {
+    sessionStorage.setItem('workoutDraft', JSON.stringify({ name, color, category, selectedIds }))
+    navigate('/exercises/new', { state: { returnTo: `/workouts/${id ? id : 'new'}` } })
+  }
 
   function toggleExercise(id: string) {
     setSelectedIds((prev) =>
@@ -199,26 +216,24 @@ export default function WorkoutCreator() {
             <p className="section-title">
               Exercises{selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}
             </p>
-            <Link
-              to="/exercises/new"
-              state={{ returnTo: `/workouts/${id ? id : 'new'}` }}
+            <button
+              onClick={handleNewExercise}
               className="btn btn-ghost btn-sm"
               style={{ gap: 4, padding: '4px 8px' }}
             >
               <PlusIcon /> New
-            </Link>
+            </button>
           </div>
 
           {exercises.length === 0 ? (
             <div className="empty-state" style={{ padding: '24px 0' }}>
               <p style={{ marginBottom: 8 }}>No exercises yet</p>
-              <Link
-                to="/exercises/new"
-                state={{ returnTo: `/workouts/${id ? id : 'new'}` }}
+              <button
+                onClick={handleNewExercise}
                 className="btn btn-primary btn-sm"
               >
                 <PlusIcon /> Create First Exercise
-              </Link>
+              </button>
             </div>
           ) : (
             <>

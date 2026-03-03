@@ -3,7 +3,7 @@ import { getSettings, saveSettings } from '../db'
 import type { AppSettings } from '../types'
 
 interface ThemeContextValue {
-  theme: 'dark' | 'light'
+  theme: 'dark' | 'light' | 'woodland' | 'axe'
   accentColor: string
   toggleTheme: () => void
   setAccentColor: (color: string) => void
@@ -26,14 +26,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   function applyTheme(s: AppSettings) {
     document.documentElement.setAttribute('data-theme', s.theme)
-    document.documentElement.style.setProperty('--accent', s.accentColor)
-    document.documentElement.style.setProperty('--accent-rgb', hexToRgb(s.accentColor))
+    
+    let activeAccent = s.accentColor
+    if (s.theme === 'woodland') activeAccent = '#56a882' // pine green
+
+    document.documentElement.style.setProperty('--accent', activeAccent)
+    document.documentElement.style.setProperty('--accent-rgb', hexToRgb(activeAccent))
   }
 
   function toggleTheme() {
+    let nextTheme: AppSettings['theme'] = 'dark'
+    if (settings.theme === 'dark') nextTheme = 'light'
+    if (settings.theme === 'light') nextTheme = 'woodland'
+    if (settings.theme === 'woodland') nextTheme = 'axe'
+    if (settings.theme === 'axe') nextTheme = 'dark'
+
     const next: AppSettings = {
       ...settings,
-      theme: settings.theme === 'dark' ? 'light' : 'dark',
+      theme: nextTheme,
     }
     setSettings(next)
     applyTheme(next)

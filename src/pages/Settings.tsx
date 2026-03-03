@@ -104,22 +104,37 @@ export default function Settings() {
           <p className="section-title">Appearance</p>
           <div className="row-between">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+              {(theme === 'dark' || theme === 'woodland') ? <MoonIcon /> : <SunIcon />}
               <div>
-                <div style={{ fontSize: 15, fontWeight: 500 }}>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</div>
+                <div style={{ fontSize: 15, fontWeight: 500 }}>
+                  {theme === 'dark' && 'Dark Mode'}
+                  {theme === 'light' && 'Light Mode'}
+                  {theme === 'woodland' && 'Mora Woodland'}
+                  {theme === 'axe' && 'Axe Grey'}
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Toggle app theme</div>
               </div>
             </div>
-            <label className="toggle">
-              <input type="checkbox" checked={theme === 'dark'} onChange={toggleTheme} />
-              <span className="toggle-track"><span className="toggle-thumb" /></span>
-            </label>
+            <button className="btn btn-secondary btn-sm" onClick={toggleTheme}>
+              Cycle Theme
+            </button>
           </div>
         </div>
 
         {/* Accent color */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p className="section-title">Accent Color</p>
+        <div 
+          className="card" 
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 14,
+            opacity: theme === 'woodland' ? 0.5 : 1,
+            pointerEvents: theme === 'woodland' ? 'none' : 'auto'
+          }}
+        >
+          <p className="section-title">
+            Accent Color {theme === 'woodland' && <span style={{ textTransform: 'none', fontWeight: 400 }}>(Locked by theme)</span>}
+          </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             {ACCENT_PRESETS.map((p) => (
               <button

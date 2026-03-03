@@ -68,7 +68,7 @@ export interface DayLog {
 }
 
 export interface AppSettings {
-  theme: 'dark' | 'light'
+  theme: 'dark' | 'light' | 'woodland' | 'axe'
   accentColor: string // hex
   defaultRestSeconds?: number
 }
