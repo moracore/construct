@@ -1,3 +1,7 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+
 const base = process.env.VITE_BASE_URL ?? '/'
 
 export default defineConfig({
