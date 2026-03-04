@@ -14,14 +14,14 @@ export default defineConfig({
         name: 'Construct - Workout App',
         short_name: 'Construct',
         description: 'Local-first workout tracker',
-        theme_color: '#ff6f00',
+        theme_color: '#1b1b1b',
         background_color: '#121212',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable'},
         ],
       },
       workbox: {
