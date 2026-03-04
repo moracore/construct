@@ -1,10 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+const base = process.env.VITE_BASE_URL ?? '/'
 
 export default defineConfig({
-  // This line handles both Android (defaults to '/') and GitHub Pages (uses the environment variable)
-  base: process.env.VITE_BASE_URL ?? '/',
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -19,14 +16,11 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         icons: [
-          { src: '${base}icon.svg', sizes: 'any', type: 'image/svg+xml' },
-          { src: '${base}pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '${base}pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: '${base}pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
     }),
   ],
