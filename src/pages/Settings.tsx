@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
-import { getSettings, saveSettings, getAllDayLogs, saveDayLog } from '../db'
+import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
-import type { DayLog } from '../types'
+import type { DayLog, Exercise, Workout, MuscleGroup } from '../types'
+
+function genId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+}
 
 const SunIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -129,14 +133,69 @@ export default function Settings() {
   }
 
   async function handleExport() {
-    const logs = await getAllDayLogs()
+    const [logs, exercises, workouts] = await Promise.all([
+      getAllDayLogs(), getAllExercises(), getAllWorkouts(),
+    ])
     logs.sort((a, b) => a.date.localeCompare(b.date))
-    const content = logs.map((l) => l.markdown).join('\n\n---\n\n')
-    const blob = new Blob([content], { type: 'text/markdown' })
+    exercises.sort((a, b) => a.name.localeCompare(b.name))
+    workouts.sort((a, b) => a.name.localeCompare(b.name))
+
+    const date = new Date().toISOString().slice(0, 10)
+    let md = `# Construct Backup — ${date}\n\n`
+
+    // ── Exercises ──────────────────────────────────────────────────────────
+    md += `## Exercises\n\n`
+    for (const ex of exercises) {
+      md += `### ${ex.name}\n`
+      md += `- id: ${ex.id}\n`
+      md += `- bodyweight: ${ex.isBodyweight}\n`
+      md += `- doubleComponent: ${ex.isDoubleComponent}\n`
+      if (ex.isTimed) md += `- timed: true\n`
+      if (ex.timedTargetSeconds) md += `- timedTarget: ${ex.timedTargetSeconds}\n`
+      if (ex.primaryMuscleGroups.length) md += `- primaryMuscles: ${ex.primaryMuscleGroups.join(', ')}\n`
+      if (ex.secondaryMuscleGroups.length) md += `- secondaryMuscles: ${ex.secondaryMuscleGroups.join(', ')}\n`
+      if (ex.defaultRestTimerSeconds) md += `- restSeconds: ${ex.defaultRestTimerSeconds}\n`
+      md += `\n`
+    }
+
+    // ── Workouts ───────────────────────────────────────────────────────────
+    md += `## Workouts\n\n`
+    for (const wo of workouts) {
+      md += `### ${wo.name}\n`
+      md += `- id: ${wo.id}\n`
+      md += `- color: ${wo.color}\n`
+      if (wo.category) md += `- category: ${wo.category}\n`
+      if (wo.exerciseIds.length) md += `- exercises: ${wo.exerciseIds.join(', ')}\n`
+      md += `\n`
+    }
+
+    // ── Logs ───────────────────────────────────────────────────────────────
+    md += `## Logs\n\n`
+    md += logs.map((l) => l.markdown).join('\n\n---\n\n')
+
+    const filename = `construct-backup-${date}.md`
+    const blob = new Blob([md], { type: 'text/markdown' })
+
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'Markdown file', accept: { 'text/markdown': ['.md'] } }],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(blob)
+        await writable.close()
+        return
+      } catch (e) {
+        if ((e as any).name === 'AbortError') return
+        // fall through to download fallback
+      }
+    }
+
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `construct-logs-${new Date().toISOString().slice(0, 10)}.md`
+    a.download = filename
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -146,28 +205,98 @@ export default function Settings() {
     if (!file) return
     setImportStatus('Importing…')
     const text = await file.text()
-    const chunks = text.split(/\n---\n/).map((c) => c.trim()).filter(Boolean)
-    let count = 0
-    for (const chunk of chunks) {
-      const dateMatch = chunk.match(/^#\s+(\d{4}-\d{2}-\d{2})/)
-      if (!dateMatch) continue
-      const date = dateMatch[1]
-      const parsed = parseMarkdownLog(chunk)
-      const log: DayLog = {
-        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        date,
-        workoutName: parsed.workoutName,
-        exercises: parsed.exercises,
-        markdown: chunk,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+
+    if (text.startsWith('# Construct Backup')) {
+      // ── Full backup format ───────────────────────────────────────────────
+      const exSection  = text.match(/^## Exercises\n([\s\S]*?)^## Workouts/m)?.[1] ?? ''
+      const woSection  = text.match(/^## Workouts\n([\s\S]*?)^## Logs/m)?.[1] ?? ''
+      const logSection = text.match(/^## Logs\n([\s\S]*)$/m)?.[1] ?? ''
+
+      let exCount = 0, woCount = 0, logCount = 0
+
+      // Parse exercises
+      for (const block of exSection.trim().split(/^### /m).filter(Boolean)) {
+        const lines = block.trim().split('\n')
+        const name = lines[0].trim()
+        const f: Record<string, string> = {}
+        lines.slice(1).forEach((l) => { const m = l.match(/^- (\w+): (.+)$/); if (m) f[m[1]] = m[2].trim() })
+        const ex: Exercise = {
+          id: f.id || genId('ex'),
+          name,
+          isBodyweight: f.bodyweight === 'true',
+          isDoubleComponent: f.doubleComponent === 'true',
+          isTimed: f.timed === 'true' || undefined,
+          timedTargetSeconds: f.timedTarget ? parseInt(f.timedTarget) : undefined,
+          primaryMuscleGroups: (f.primaryMuscles ?? '').split(', ').filter(Boolean) as MuscleGroup[],
+          secondaryMuscleGroups: (f.secondaryMuscles ?? '').split(', ').filter(Boolean) as MuscleGroup[],
+          defaultRestTimerSeconds: f.restSeconds ? parseInt(f.restSeconds) : undefined,
+          createdAt: Date.now(),
+        }
+        await saveExercise(ex)
+        exCount++
       }
-      await saveDayLog(log)
-      count++
+
+      // Parse workouts
+      for (const block of woSection.trim().split(/^### /m).filter(Boolean)) {
+        const lines = block.trim().split('\n')
+        const name = lines[0].trim()
+        const f: Record<string, string> = {}
+        lines.slice(1).forEach((l) => { const m = l.match(/^- (\w+): (.+)$/); if (m) f[m[1]] = m[2].trim() })
+        const wo: Workout = {
+          id: f.id || genId('wo'),
+          name,
+          color: f.color || 'var(--accent)',
+          category: f.category || '',
+          exerciseIds: (f.exercises ?? '').split(', ').filter(Boolean),
+          createdAt: Date.now(),
+        }
+        await saveWorkout(wo)
+        woCount++
+      }
+
+      // Parse logs
+      for (const chunk of logSection.trim().split(/\n---\n/).map((c) => c.trim()).filter(Boolean)) {
+        const dateMatch = chunk.match(/^#\s+(\d{4}-\d{2}-\d{2})/)
+        if (!dateMatch) continue
+        const parsed = parseMarkdownLog(chunk)
+        const log: DayLog = {
+          id: genId('log'),
+          date: dateMatch[1],
+          workoutName: parsed.workoutName,
+          exercises: parsed.exercises,
+          markdown: chunk,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+        await saveDayLog(log)
+        logCount++
+      }
+
+      setImportStatus(`Imported ${exCount} exercises, ${woCount} workouts, ${logCount} logs ✓`)
+    } else {
+      // ── Legacy log-only format ───────────────────────────────────────────
+      let count = 0
+      for (const chunk of text.split(/\n---\n/).map((c) => c.trim()).filter(Boolean)) {
+        const dateMatch = chunk.match(/^#\s+(\d{4}-\d{2}-\d{2})/)
+        if (!dateMatch) continue
+        const parsed = parseMarkdownLog(chunk)
+        const log: DayLog = {
+          id: genId('log'),
+          date: dateMatch[1],
+          workoutName: parsed.workoutName,
+          exercises: parsed.exercises,
+          markdown: chunk,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+        await saveDayLog(log)
+        count++
+      }
+      setImportStatus(`Imported ${count} log${count !== 1 ? 's' : ''} ✓`)
     }
-    setImportStatus(`Imported ${count} log${count !== 1 ? 's' : ''} ✓`)
+
     if (fileInputRef.current) fileInputRef.current.value = ''
-    setTimeout(() => setImportStatus(null), 4000)
+    setTimeout(() => setImportStatus(null), 5000)
   }
 
   const fmt = (s: number) => s >= 60 ? `${Math.floor(s / 60)}m ${s % 60 > 0 ? `${s % 60}s` : ''}`.trim() : `${s}s`
@@ -298,8 +427,8 @@ export default function Settings() {
 
           <div className="row-between">
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>Export Logs</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Download all logs as markdown</div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Export Backup</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Exercises, workouts & logs as one markdown file</div>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={handleExport}>
               Export
@@ -308,9 +437,9 @@ export default function Settings() {
 
           <div className="row-between">
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>Import Logs</div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Import Backup</div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {importStatus ?? 'Import from a Construct markdown export'}
+                {importStatus ?? 'Restore from a Construct backup'}
               </div>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={() => fileInputRef.current?.click()}>
