@@ -12,9 +12,18 @@ interface PR {
   maxWeight: number | null
   best1RM: number | null
   maxReps: number
+  maxDuration: number  // seconds; only meaningful when isTimed
+  isTimed: boolean
   isBodyweight: boolean
   sessions: number
   lastDate: string
+}
+
+function fmtDuration(s: number): string {
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  if (m > 0) return `${m}m ${sec.toString().padStart(2, '0')}s`
+  return `${s}s`
 }
 
 interface ChartPoint { label: string; value: number }
@@ -37,12 +46,13 @@ export default function Progress({ logs, exercises }: Props) {
     log.exercises.forEach((ex) => {
       const exDef = exercises.find((e) => e.id === ex.exerciseId || e.name === ex.exerciseName)
       const isBodyweight = exDef?.isBodyweight ?? false
+      const isTimed = exDef?.isTimed ?? ex.sets.some((s) => s.duration != null || s.leftDuration != null)
 
       if (!prMap.has(ex.exerciseName)) {
         prMap.set(ex.exerciseName, {
           exerciseName: ex.exerciseName,
-          maxWeight: null, best1RM: null, maxReps: 0,
-          isBodyweight, sessions: 0, lastDate: log.date,
+          maxWeight: null, best1RM: null, maxReps: 0, maxDuration: 0,
+          isTimed, isBodyweight, sessions: 0, lastDate: log.date,
         })
       }
       const pr = prMap.get(ex.exerciseName)!
@@ -50,16 +60,21 @@ export default function Progress({ logs, exercises }: Props) {
       pr.lastDate = log.date
 
       ex.sets.forEach((set) => {
-        if (set.reps > pr.maxReps) pr.maxReps = set.reps
-        if ((set.leftReps ?? 0) > pr.maxReps) pr.maxReps = set.leftReps!
-        if ((set.rightReps ?? 0) > pr.maxReps) pr.maxReps = set.rightReps!
+        if (isTimed) {
+          const d = set.duration ?? Math.max(set.leftDuration ?? 0, set.rightDuration ?? 0)
+          if (d > pr.maxDuration) pr.maxDuration = d
+        } else {
+          if (set.reps > pr.maxReps) pr.maxReps = set.reps
+          if ((set.leftReps ?? 0) > pr.maxReps) pr.maxReps = set.leftReps!
+          if ((set.rightReps ?? 0) > pr.maxReps) pr.maxReps = set.rightReps!
 
-        const ws = [set.weight, set.leftWeight, set.rightWeight].filter((w): w is number => w != null)
-        ws.forEach((w) => {
-          if (w > (pr.maxWeight ?? 0)) pr.maxWeight = w
-          const e = epley(w, set.reps)
-          if (e > (pr.best1RM ?? 0)) pr.best1RM = e
-        })
+          const ws = [set.weight, set.leftWeight, set.rightWeight].filter((w): w is number => w != null)
+          ws.forEach((w) => {
+            if (w > (pr.maxWeight ?? 0)) pr.maxWeight = w
+            const e = epley(w, set.reps)
+            if (e > (pr.best1RM ?? 0)) pr.best1RM = e
+          })
+        }
       })
     })
   })
@@ -75,7 +90,10 @@ export default function Progress({ logs, exercises }: Props) {
       if (!ex) return
       let best = 0
       ex.sets.forEach((set) => {
-        if (selectedPR.isBodyweight) {
+        if (selectedPR.isTimed) {
+          const d = set.duration ?? Math.max(set.leftDuration ?? 0, set.rightDuration ?? 0)
+          if (d > best) best = d
+        } else if (selectedPR.isBodyweight) {
           if (set.reps > best) best = set.reps
         } else {
           const ws = [set.weight, set.leftWeight, set.rightWeight].filter((w): w is number => w != null)
@@ -84,7 +102,7 @@ export default function Progress({ logs, exercises }: Props) {
       })
       if (best > 0) {
         const d = new Date(log.date + 'T00:00:00')
-        chartData.push({ label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), value: parseFloat(best.toFixed(1)) })
+        chartData.push({ label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), value: best })
       }
     })
   }
@@ -142,14 +160,14 @@ export default function Progress({ logs, exercises }: Props) {
         {selectedName && chartData.length >= 2 && (
           <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', padding: '14px 4px 8px', border: '1px solid var(--border-subtle)', marginTop: 12 }}>
             <div style={{ fontSize: 12, color: '#888', paddingLeft: 16, marginBottom: 6 }}>
-              {selectedPR?.isBodyweight ? 'Max Reps' : 'Est. 1RM (kg)'}
+              {selectedPR?.isTimed ? 'Longest hold (s)' : selectedPR?.isBodyweight ? 'Max Reps' : 'Est. 1RM (kg)'}
             </div>
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={chartData} margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#888' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 10, fill: '#888' }} tickLine={false} axisLine={false} width={32} />
-                <Tooltip {...ttStyle} formatter={(v: any) => [`${v ?? 0}${selectedPR?.isBodyweight ? ' reps' : 'kg'}`, '']} />                  <Line type="monotone" dataKey="value" stroke={accentColor} strokeWidth={2.5} dot={{ fill: accentColor, r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Tooltip {...ttStyle} formatter={(v: any) => [selectedPR?.isTimed ? fmtDuration(v ?? 0) : `${v ?? 0}${selectedPR?.isBodyweight ? ' reps' : 'kg'}`, '']} />                  <Line type="monotone" dataKey="value" stroke={accentColor} strokeWidth={2.5} dot={{ fill: accentColor, r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -193,7 +211,9 @@ export default function Progress({ logs, exercises }: Props) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  {pr.isBodyweight ? (
+                  {pr.isTimed ? (
+                    <div style={{ fontSize: 15, fontWeight: 700, color: accentColor }}>{fmtDuration(pr.maxDuration)}</div>
+                  ) : pr.isBodyweight ? (
                     <div style={{ fontSize: 15, fontWeight: 700, color: accentColor }}>{pr.maxReps} reps</div>
                   ) : (
                     <>
