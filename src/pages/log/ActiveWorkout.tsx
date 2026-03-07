@@ -442,7 +442,6 @@ export default function ActiveWorkout() {
                       exerciseName: ex.exerciseName,
                       isBodyweight: ex.isBodyweight,
                       isDoubleComponent: ex.isDoubleComponent,
-                      timedTargetSeconds: ex.timedTargetSeconds,
                       setNumber: ex.sets.length + 1,
                       prefillWeight: lastSet?.weight,
                     }
