@@ -20,19 +20,99 @@ const MoonIcon = () => (
 )
 
 const ACCENT_PRESETS = [
+  { name: 'Coral',         value: '#FF4444' },
+  { name: 'Orange',        value: '#FF8800' },
+  { name: 'Amber',         value: '#FFCC00' },
+  { name: 'Emerald',       value: '#44BB66' },
+  { name: 'Teal',          value: '#00BBCC' },
   { name: 'Electric Blue', value: '#0080FF' },
-  { name: 'Coral', value: '#FF4444' },
-  { name: 'Orange', value: '#FF8800' },
-  { name: 'Amber', value: '#FFCC00' },
-  { name: 'Emerald', value: '#44BB66' },
-  { name: 'Teal', value: '#00BBCC' },
-  { name: 'Purple', value: '#AA44FF' },
-  { name: 'Pink', value: '#FF44AA' },
+  { name: 'Purple',        value: '#AA44FF' },
+  { name: 'Pink',          value: '#FF44AA' },
 ]
+
+function hexToHsl(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, Math.round(l * 100)]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h = 0
+  switch (max) {
+    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+    case g: h = ((b - r) / d + 2) / 6; break
+    case b: h = ((r - g) / d + 4) / 6; break
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)]
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const sn = s / 100, ln = l / 100
+  const k = (n: number) => (n + h / 30) % 12
+  const a = sn * Math.min(ln, 1 - ln)
+  const f = (n: number) => {
+    const v = ln - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+    return Math.round(v * 255).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+
+const sliderToS = (v: number) => 50 + v * 0.5
+const sliderToL = (v: number) => 50 + v * 0.3
+const sToSlider = (s: number) => Math.round(Math.max(0, Math.min(100, (s - 50) * 2)))
+const lToSlider = (l: number) => Math.round(Math.max(0, Math.min(100, (l - 50) / 0.3)))
+
+function slidersFromHex(hex: string): [number, number, number] {
+  const [h, s, l] = hexToHsl(hex)
+  return [h, sToSlider(s), lToSlider(l)]
+}
+
+function SliderRow({ label, value, min, max, gradient, onChange }: {
+  label: string; value: number; min: number; max: number
+  gradient: string; onChange: (v: number) => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)' }}>
+        {label}
+      </span>
+      <input
+        type="range"
+        className="hsl-slider"
+        min={min}
+        max={max}
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        style={{ background: gradient }}
+      />
+    </div>
+  )
+}
 
 export default function Settings() {
   const { theme, accentColor, toggleTheme, setAccentColor } = useTheme()
   const [restSeconds, setRestSeconds] = useState(90)
+
+  const [hSlider, setHSlider] = useState(() => slidersFromHex(accentColor)[0])
+  const [sSlider, setSSlider] = useState(() => slidersFromHex(accentColor)[1])
+  const [lSlider, setLSlider] = useState(() => slidersFromHex(accentColor)[2])
+
+  const previewHex = hslToHex(hSlider, sliderToS(sSlider), sliderToL(lSlider))
+  const actualS = Math.round(sliderToS(sSlider))
+  const actualL = Math.round(sliderToL(lSlider))
+
+  const applySliders = (h: number, sv: number, lv: number) => {
+    setHSlider(h); setSSlider(sv); setLSlider(lv)
+    setAccentColor(hslToHex(h, sliderToS(sv), sliderToL(lv)))
+  }
+
+  const handlePreset = (hex: string) => {
+    const [h, sv, lv] = slidersFromHex(hex)
+    setHSlider(h); setSSlider(sv); setLSlider(lv)
+    setAccentColor(hex)
+  }
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -135,34 +215,52 @@ export default function Settings() {
           <p className="section-title">
             Accent Color {theme === 'woodland' && <span style={{ textTransform: 'none', fontWeight: 400 }}>(Locked by theme)</span>}
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {/* Preset circles + live color */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             {ACCENT_PRESETS.map((p) => (
               <button
                 key={p.value}
                 type="button"
                 title={p.name}
-                onClick={() => setAccentColor(p.value)}
+                onClick={() => handlePreset(p.value)}
                 style={{
                   width: 36, height: 36, borderRadius: '50%', background: p.value,
-                  border: accentColor === p.value ? '3px solid var(--text-primary)' : '3px solid transparent',
-                  boxShadow: accentColor === p.value ? '0 0 0 2px var(--bg-secondary)' : 'none',
+                  border: accentColor.toLowerCase() === p.value.toLowerCase() ? '3px solid var(--text-primary)' : '3px solid transparent',
+                  boxShadow: accentColor.toLowerCase() === p.value.toLowerCase() ? '0 0 0 2px var(--bg-secondary)' : 'none',
                   cursor: 'pointer', padding: 0, outline: 'none', transition: 'all 150ms ease',
                 }}
               />
             ))}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-              <input
-                type="color"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', padding: 2, cursor: 'pointer', background: 'none' }}
-              />
-              Custom
-            </label>
+            <div style={{ width: 1, height: 28, background: 'var(--border)', margin: '0 2px' }} />
+            <div
+              title="Current color"
+              style={{
+                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                background: previewHex,
+                border: '3px solid var(--text-primary)',
+                boxShadow: `0 0 0 2px var(--bg-secondary), 0 0 10px ${previewHex}66`,
+                transition: 'background 80ms ease',
+              }}
+            />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 14, height: 14, borderRadius: '50%', background: accentColor }} />
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{accentColor}</span>
+
+          {/* HSL Sliders */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <SliderRow
+              label="Hue" value={hSlider} min={0} max={360}
+              gradient="linear-gradient(to right, hsl(0,80%,65%), hsl(30,80%,65%), hsl(60,80%,65%), hsl(90,80%,65%), hsl(120,80%,65%), hsl(150,80%,65%), hsl(180,80%,65%), hsl(210,80%,65%), hsl(240,80%,65%), hsl(270,80%,65%), hsl(300,80%,65%), hsl(330,80%,65%), hsl(360,80%,65%))"
+              onChange={v => applySliders(v, sSlider, lSlider)}
+            />
+            <SliderRow
+              label="Saturation" value={sSlider} min={0} max={100}
+              gradient={`linear-gradient(to right, hsl(${hSlider},50%,${actualL}%), hsl(${hSlider},100%,${actualL}%))`}
+              onChange={v => applySliders(hSlider, v, lSlider)}
+            />
+            <SliderRow
+              label="Lightness" value={lSlider} min={0} max={100}
+              gradient={`linear-gradient(to right, hsl(${hSlider},${actualS}%,50%), hsl(${hSlider},${actualS}%,80%))`}
+              onChange={v => applySliders(hSlider, sSlider, v)}
+            />
           </div>
         </div>
 

@@ -975,3 +975,35 @@ input::placeholder {
   max-width: 600px;
   margin: 0 auto;
 }
+/* ── HSL slider styling ── */
+input[type="range"].hsl-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  border: none;
+}
+input[type="range"].hsl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+input[type="range"].hsl-slider::-moz-range-thumb {
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+  cursor: pointer;
+  border: none;
+}
+input[type="range"].hsl-slider::-moz-range-track {
+  background: transparent;
+}
