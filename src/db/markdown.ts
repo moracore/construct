@@ -6,7 +6,17 @@ function formatDate(dateStr: string): string {
   return `${dateStr} - ${days[d.getDay()]}`
 }
 
-function formatSet(set: ExerciseSet, isDoubleComponent: boolean, isBodyweight: boolean): string {
+function formatSet(set: ExerciseSet, isDoubleComponent: boolean, isBodyweight: boolean, isTimed?: boolean): string {
+  if (isTimed) {
+    if (isDoubleComponent) {
+      const w = set.weight != null ? `${set.weight}kg` : (isBodyweight ? 'BW' : '')
+      const wPart = w ? `${w} ` : ''
+      return `${wPart}L ${set.leftDuration ?? 0}s | R ${set.rightDuration ?? 0}s`
+    }
+    const w = set.weight != null ? `${set.weight}kg` : (isBodyweight ? 'BW' : '')
+    const wPart = w ? `${w} ` : ''
+    return `${wPart}${set.duration ?? 0}s`
+  }
   if (isDoubleComponent) {
     const lw = set.leftWeight != null ? `${set.leftWeight}kg` : ''
     const rw = set.rightWeight != null ? `${set.rightWeight}kg` : ''
@@ -21,16 +31,17 @@ function formatSet(set: ExerciseSet, isDoubleComponent: boolean, isBodyweight: b
   return `${w} x ${set.reps}`
 }
 
-export function generateMarkdown(log: DayLog, exerciseMap: Record<string, { isDoubleComponent: boolean; isBodyweight: boolean }>): string {
+export function generateMarkdown(log: DayLog, exerciseMap: Record<string, { isDoubleComponent: boolean; isBodyweight: boolean; isTimed?: boolean }>): string {
   const dateHeader = formatDate(log.date)
   let md = `# ${dateHeader} - ${log.workoutName}\n`
 
   for (const ex of log.exercises) {
     const meta = exerciseMap[ex.exerciseId] ?? { isDoubleComponent: false, isBodyweight: false }
-    const suffix = meta.isDoubleComponent ? ' (L/R)' : ''
+    const suffixes = [meta.isDoubleComponent ? 'L/R' : null, meta.isTimed ? 'Timed' : null].filter(Boolean)
+    const suffix = suffixes.length ? ` (${suffixes.join(', ')})` : ''
     md += `\n## ${ex.exerciseName}${suffix}\n`
     ex.sets.forEach((set, i) => {
-      md += `- Set ${i + 1}: ${formatSet(set, meta.isDoubleComponent, meta.isBodyweight)}\n`
+      md += `- Set ${i + 1}: ${formatSet(set, meta.isDoubleComponent, meta.isBodyweight, meta.isTimed)}\n`
     })
   }
 

@@ -23,6 +23,8 @@ export interface Exercise {
   name: string
   isBodyweight: boolean
   isDoubleComponent: boolean // L/R tracking
+  isTimed?: boolean
+  timedTargetSeconds?: number
   primaryMuscleGroups: MuscleGroup[]
   secondaryMuscleGroups: MuscleGroup[]
   defaultRestTimerSeconds?: number
@@ -47,6 +49,10 @@ export interface ExerciseSet {
   rightWeight?: number
   leftReps?: number
   rightReps?: number
+  // For timed exercises (seconds)
+  duration?: number
+  leftDuration?: number
+  rightDuration?: number
   rpe?: number
   notes?: string
 }

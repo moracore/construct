@@ -29,6 +29,8 @@ export default function ExerciseCreator() {
   const [name, setName] = useState('')
   const [isBodyweight, setIsBodyweight] = useState(false)
   const [isDoubleComponent, setIsDoubleComponent] = useState(false)
+  const [isTimed, setIsTimed] = useState(false)
+  const [timedTargetSeconds, setTimedTargetSeconds] = useState('')
   const [primaryMuscleGroups, setPrimary] = useState<MuscleGroup[]>([])
   const [secondaryMuscleGroups, setSecondary] = useState<MuscleGroup[]>([])
   const [restSeconds, setRestSeconds] = useState('')
@@ -43,6 +45,8 @@ export default function ExerciseCreator() {
           setName(ex.name)
           setIsBodyweight(ex.isBodyweight)
           setIsDoubleComponent(ex.isDoubleComponent)
+          setIsTimed(ex.isTimed ?? false)
+          setTimedTargetSeconds(ex.timedTargetSeconds ? String(ex.timedTargetSeconds) : '')
           setPrimary(ex.primaryMuscleGroups)
           setSecondary(ex.secondaryMuscleGroups)
           setRestSeconds(ex.defaultRestTimerSeconds ? String(ex.defaultRestTimerSeconds) : '')
@@ -62,6 +66,8 @@ export default function ExerciseCreator() {
       name: name.trim(),
       isBodyweight,
       isDoubleComponent,
+      isTimed: isTimed || undefined,
+      timedTargetSeconds: isTimed && timedTargetSeconds ? parseInt(timedTargetSeconds) : undefined,
       primaryMuscleGroups,
       secondaryMuscleGroups,
       defaultRestTimerSeconds: restSeconds ? parseInt(restSeconds) : undefined,
@@ -141,6 +147,24 @@ export default function ExerciseCreator() {
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -8 }}>
             Log each side separately — e.g. dumbbell curls, lateral raises
           </p>
+
+          <div className="divider" />
+
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={isTimed}
+              onChange={(e) => setIsTimed(e.target.checked)}
+            />
+            <span className="toggle-track">
+              <span className="toggle-thumb" />
+            </span>
+            <span style={{ fontSize: 15 }}>Timed exercise</span>
+          </label>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -8 }}>
+            Records duration instead of reps — e.g. planks, holds
+          </p>
+
         </div>
 
         <div className="card">

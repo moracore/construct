@@ -12,6 +12,7 @@ import WorkoutCreator from './pages/WorkoutCreator'
 import WorkoutSelector from './pages/log/WorkoutSelector'
 import ActiveWorkout from './pages/log/ActiveWorkout'
 import CompletionSummary from './pages/log/CompletionSummary'
+import TimedSetPage from './pages/log/TimedSetPage'
 import { useActiveWorkout } from './context/ActiveWorkoutContext'
 
 // Log entry point: redirect to active session if one exists
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/log" element={<LogEntry />} />
         <Route path="/log/active" element={<ActiveWorkout />} />
+        <Route path="/log/timed-set" element={<TimedSetPage />} />
         <Route path="/log/complete" element={<CompletionSummary />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/logs" element={<Logs />} />

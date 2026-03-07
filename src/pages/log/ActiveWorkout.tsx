@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import type { TimedSetPageState } from './TimedSetPage'
 import { useActiveWorkout, type SessionExercise, type SessionSet } from '../../context/ActiveWorkoutContext'
 import { useRestTimer } from '../../context/RestTimerContext'
 import { getSettings } from '../../db'
@@ -42,6 +43,14 @@ function useElapsed(startedAt: number) {
   const s = elapsed % 60
   if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
+// ── Duration formatter ───────────────────────────────────────────────────────
+function formatDuration(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  if (m > 0) return `${m}m ${s.toString().padStart(2, '0')}s`
+  return `${s}s`
 }
 
 // ── Set input row ───────────────────────────────────────────────────────────
@@ -161,7 +170,7 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
 }
 
 // ── Set display row ─────────────────────────────────────────────────────────
-function SetRow({ set, number, isDoubleComponent, isBodyweight }: { set: SessionSet; number: number; isDoubleComponent: boolean; isBodyweight: boolean }) {
+function SetRow({ set, number, isDoubleComponent, isBodyweight, isTimed }: { set: SessionSet; number: number; isDoubleComponent: boolean; isBodyweight: boolean; isTimed?: boolean }) {
   const cell = (content: string | number, width: number, muted = false) => (
     <span style={{ width, textAlign: 'center', fontSize: 14, color: muted ? 'var(--text-muted)' : 'var(--text-secondary)', flexShrink: 0 }}>
       {content}
@@ -169,6 +178,31 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight }: { set: Session
   )
 
   const w = set.weight ?? set.leftWeight
+
+  if (isTimed) {
+    return (
+      <div className="set-logged-row">
+        <span className="set-number">Set {number}</span>
+        {isDoubleComponent ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+            {cell(isBodyweight ? (w ? `BW+${w}kg` : 'BW') : `${w ?? '—'}kg`, 60)}
+            {cell('·', 16, true)}
+            <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
+            {cell(formatDuration(set.leftDuration ?? 0), 54)}
+            <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+            <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
+            {cell(formatDuration(set.rightDuration ?? 0), 54)}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+            {cell(isBodyweight ? (set.weight ? `BW+${set.weight}kg` : 'BW') : `${set.weight ?? '—'}kg`, 72)}
+            {cell('·', 20, true)}
+            {cell(formatDuration(set.duration ?? 0), 72)}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="set-logged-row">
@@ -201,14 +235,19 @@ interface CardProps {
   onLogSet: (set: SessionSet) => void
   onRemoveLastSet: () => void
   onStartTimer: (duration: number) => void
+  onOpenTimedSet: () => void
   defaultRest: number
 }
 
-function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStartTimer, defaultRest }: CardProps) {
+function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStartTimer, onOpenTimedSet, defaultRest }: CardProps) {
   const [showInput, setShowInput] = useState(false)
   const [initialValues, setInitialValues] = useState<PendingSet>(emptyPending())
 
   function handleAddSet() {
+    if (ex.isTimed) {
+      onOpenTimedSet()
+      return
+    }
     const last = ex.sets[ex.sets.length - 1]
     setInitialValues(last ? prefillFromLast(last, ex) : emptyPending())
     setShowInput(true)
@@ -221,17 +260,21 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
     onStartTimer(duration)
   }
 
+  const typeLabel = [
+    ex.isTimed ? 'Timed' : (ex.isBodyweight ? 'Bodyweight' : 'Weighted'),
+    ex.isDoubleComponent ? 'L/R' : null,
+    ex.defaultRestSeconds ? `${ex.defaultRestSeconds}s rest` : '90s rest',
+  ].filter(Boolean).join(' · ')
+
   return (
     <div className="exercise-card">
       <div className="exercise-card-header">
         <div>
           <div style={{ fontWeight: 600, fontSize: 16 }}>
             {ex.exerciseName}
-            {ex.isDoubleComponent && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 6 }}>L/R</span>}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            {ex.isBodyweight ? 'Bodyweight' : 'Weighted'}
-            {ex.defaultRestSeconds ? ` · ${ex.defaultRestSeconds}s rest` : ' · 90s rest'}
+            {typeLabel}
           </div>
         </div>
         <button className="btn btn-ghost btn-icon btn-sm" onClick={onRemoveExercise} style={{ color: 'var(--text-muted)' }}>
@@ -248,6 +291,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
               number={i + 1}
               isDoubleComponent={ex.isDoubleComponent}
               isBodyweight={ex.isBodyweight}
+              isTimed={ex.isTimed}
             />
           ))}
         </div>
@@ -266,7 +310,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
       <div style={{ display: 'flex', gap: 8, paddingTop: 8 }}>
         {!showInput && (
           <button className="btn btn-secondary btn-sm" style={{ flex: 1, gap: 6 }} onClick={handleAddSet}>
-            <PlusIcon /> Set
+            <PlusIcon /> {ex.isTimed ? 'Start' : 'Set'}
           </button>
         )}
         {ex.sets.length > 0 && !showInput && (
@@ -288,6 +332,7 @@ export default function ActiveWorkout() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [defaultRest, setDefaultRest] = useState(90)
   const contentRef = useRef<HTMLDivElement>(null)
+  const processedLocationKey = useRef<string | null>(null)
 
   useEffect(() => {
     getSettings().then((s) => { if (s.defaultRestSeconds) setDefaultRest(s.defaultRestSeconds) })
@@ -303,11 +348,23 @@ export default function ActiveWorkout() {
         exerciseName: ex.name,
         isBodyweight: ex.isBodyweight,
         isDoubleComponent: ex.isDoubleComponent,
+        isTimed: ex.isTimed,
+        timedTargetSeconds: ex.timedTargetSeconds,
         defaultRestSeconds: ex.defaultRestTimerSeconds,
       })
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.state, location.pathname, session, addExercise, navigate])
+
+  // Handle return from TimedSetPage — guard with location.key so StrictMode double-invoke doesn't log twice
+  useEffect(() => {
+    const state = location.state as { timedSet?: { exerciseId: string; set: SessionSet } } | null
+    if (state?.timedSet && processedLocationKey.current !== location.key) {
+      processedLocationKey.current = location.key
+      logSet(state.timedSet.exerciseId, state.timedSet.set)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state, location.key, location.pathname, logSet, navigate])
 
   // Redirect if no session
   useEffect(() => {
@@ -326,6 +383,8 @@ export default function ActiveWorkout() {
       exerciseName: ex.name,
       isBodyweight: ex.isBodyweight,
       isDoubleComponent: ex.isDoubleComponent,
+      isTimed: ex.isTimed,
+      timedTargetSeconds: ex.timedTargetSeconds,
       defaultRestSeconds: ex.defaultRestTimerSeconds,
     })
     // Scroll to bottom after adding
@@ -376,6 +435,19 @@ export default function ActiveWorkout() {
                   onLogSet={(set) => logSet(ex.exerciseId, set)}
                   onRemoveLastSet={() => removeLastSet(ex.exerciseId)}
                   onStartTimer={(dur) => startTimer(dur, ex.exerciseName)}
+                  onOpenTimedSet={() => {
+                    const lastSet = ex.sets[ex.sets.length - 1]
+                    const timedState: TimedSetPageState = {
+                      exerciseId: ex.exerciseId,
+                      exerciseName: ex.exerciseName,
+                      isBodyweight: ex.isBodyweight,
+                      isDoubleComponent: ex.isDoubleComponent,
+                      timedTargetSeconds: ex.timedTargetSeconds,
+                      setNumber: ex.sets.length + 1,
+                      prefillWeight: lastSet?.weight,
+                    }
+                    navigate('/log/timed-set', { state: timedState })
+                  }}
                   defaultRest={defaultRest}
                 />
               ))}

@@ -7,6 +7,9 @@ export interface SessionSet {
   rightWeight?: number
   leftReps?: number
   rightReps?: number
+  duration?: number
+  leftDuration?: number
+  rightDuration?: number
   loggedAt: number
 }
 
@@ -15,6 +18,8 @@ export interface SessionExercise {
   exerciseName: string
   isBodyweight: boolean
   isDoubleComponent: boolean
+  isTimed?: boolean
+  timedTargetSeconds?: number
   defaultRestSeconds?: number
   sets: SessionSet[]
 }
