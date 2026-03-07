@@ -14,6 +14,7 @@ export interface SessionSet {
 }
 
 export interface SessionExercise {
+  instanceId: string   // unique per card — same exercise can appear multiple times
   exerciseId: string
   exerciseName: string
   isBodyweight: boolean
@@ -35,16 +36,20 @@ export interface ActiveSession {
 interface ActiveWorkoutContextValue {
   session: ActiveSession | null
   startSession: (s: Omit<ActiveSession, 'exercises' | 'startedAt'>) => void
-  addExercise: (ex: Omit<SessionExercise, 'sets'>) => void
-  removeExercise: (exerciseId: string) => void
-  logSet: (exerciseId: string, set: SessionSet) => void
-  removeLastSet: (exerciseId: string) => void
+  addExercise: (ex: Omit<SessionExercise, 'sets' | 'instanceId'>) => void
+  removeExercise: (instanceId: string) => void
+  logSet: (instanceId: string, set: SessionSet) => void
+  removeLastSet: (instanceId: string) => void
   clearSession: () => void
 }
 
 const ActiveWorkoutContext = createContext<ActiveWorkoutContextValue | null>(null)
 
 const STORAGE_KEY = 'gymapp_active_session'
+
+function genId() {
+  return `inst_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+}
 
 export function ActiveWorkoutProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<ActiveSession | null>(() => {
@@ -68,41 +73,39 @@ export function ActiveWorkoutProvider({ children }: { children: ReactNode }) {
     setSession({ ...s, exercises: [], startedAt: Date.now() })
   }, [])
 
-  const addExercise = useCallback((ex: Omit<SessionExercise, 'sets'>) => {
+  const addExercise = useCallback((ex: Omit<SessionExercise, 'sets' | 'instanceId'>) => {
     setSession((prev) => {
       if (!prev) return prev
-      // Prevent duplicates
-      if (prev.exercises.some((e) => e.exerciseId === ex.exerciseId)) return prev
-      return { ...prev, exercises: [...prev.exercises, { ...ex, sets: [] }] }
+      return { ...prev, exercises: [...prev.exercises, { ...ex, instanceId: genId(), sets: [] }] }
     })
   }, [])
 
-  const removeExercise = useCallback((exerciseId: string) => {
+  const removeExercise = useCallback((instanceId: string) => {
     setSession((prev) => {
       if (!prev) return prev
-      return { ...prev, exercises: prev.exercises.filter((e) => e.exerciseId !== exerciseId) }
+      return { ...prev, exercises: prev.exercises.filter((e) => e.instanceId !== instanceId) }
     })
   }, [])
 
-  const logSet = useCallback((exerciseId: string, set: SessionSet) => {
+  const logSet = useCallback((instanceId: string, set: SessionSet) => {
     setSession((prev) => {
       if (!prev) return prev
       return {
         ...prev,
         exercises: prev.exercises.map((e) =>
-          e.exerciseId === exerciseId ? { ...e, sets: [...e.sets, set] } : e
+          e.instanceId === instanceId ? { ...e, sets: [...e.sets, set] } : e
         ),
       }
     })
   }, [])
 
-  const removeLastSet = useCallback((exerciseId: string) => {
+  const removeLastSet = useCallback((instanceId: string) => {
     setSession((prev) => {
       if (!prev) return prev
       return {
         ...prev,
         exercises: prev.exercises.map((e) =>
-          e.exerciseId === exerciseId ? { ...e, sets: e.sets.slice(0, -1) } : e
+          e.instanceId === instanceId ? { ...e, sets: e.sets.slice(0, -1) } : e
         ),
       }
     })

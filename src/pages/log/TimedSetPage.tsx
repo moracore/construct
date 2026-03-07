@@ -128,7 +128,7 @@ function CircleTimer({ timer, label, targetSeconds, onTap, size = 220 }: CircleT
 
 // ── Page state passed via navigation ─────────────────────────────────────────
 export interface TimedSetPageState {
-  exerciseId: string
+  instanceId: string
   exerciseName: string
   isBodyweight: boolean
   isDoubleComponent: boolean
@@ -152,12 +152,12 @@ export default function TimedSetPage() {
   const rightTimer = useStopwatch()
 
   useEffect(() => {
-    if (!state?.exerciseId) navigate('/log/active', { replace: true })
+    if (!state?.instanceId) navigate('/log/active', { replace: true })
   }, [state, navigate])
 
-  if (!state?.exerciseId) return null
+  if (!state?.instanceId) return null
 
-  const { exerciseId, exerciseName, isBodyweight, isDoubleComponent, setNumber } = state
+  const { instanceId, exerciseName, isBodyweight, isDoubleComponent, setNumber } = state
 
   const isRunning = isDoubleComponent
     ? leftTimer.state.status === 'running' || rightTimer.state.status === 'running'
@@ -187,7 +187,7 @@ export default function TimedSetPage() {
       duration: timer.state.elapsed,
       loggedAt: Date.now(),
     }
-    navigate('/log/active', { replace: true, state: { timedSet: { exerciseId, set } } })
+    navigate('/log/active', { replace: true, state: { timedSet: { instanceId, set } } })
   }
 
   function handleResume() {
@@ -214,7 +214,7 @@ export default function TimedSetPage() {
       rightDuration: rightTimer.state.elapsed,
       loggedAt: Date.now(),
     }
-    navigate('/log/active', { replace: true, state: { timedSet: { exerciseId, set } } })
+    navigate('/log/active', { replace: true, state: { timedSet: { instanceId, set } } })
   }
 
   const lrCanRecord = leftTimer.state.status === 'stopped' || rightTimer.state.status === 'stopped'

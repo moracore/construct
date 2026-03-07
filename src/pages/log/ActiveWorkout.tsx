@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import type { TimedSetPageState } from './TimedSetPage'
 import { useActiveWorkout, type SessionExercise, type SessionSet } from '../../context/ActiveWorkoutContext'
 import { useRestTimer } from '../../context/RestTimerContext'
-import { getSettings } from '../../db'
+import { getSettings, getWorkout } from '../../db'
 import ExercisePicker from '../../components/ExercisePicker'
 import type { Exercise } from '../../types'
 
@@ -331,12 +331,21 @@ export default function ActiveWorkout() {
   const { start: startTimer } = useRestTimer()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [defaultRest, setDefaultRest] = useState(90)
+  const [workoutExerciseIds, setWorkoutExerciseIds] = useState<string[]>([])
   const contentRef = useRef<HTMLDivElement>(null)
   const processedLocationKey = useRef<string | null>(null)
 
   useEffect(() => {
     getSettings().then((s) => { if (s.defaultRestSeconds) setDefaultRest(s.defaultRestSeconds) })
   }, [])
+
+  useEffect(() => {
+    if (session?.workoutId) {
+      getWorkout(session.workoutId).then((wo) => {
+        if (wo) setWorkoutExerciseIds(wo.exerciseIds)
+      })
+    }
+  }, [session?.workoutId])
 
   // If we arrive here from ExerciseCreator with a new exercise, auto-add it
   useEffect(() => {
@@ -358,10 +367,10 @@ export default function ActiveWorkout() {
 
   // Handle return from TimedSetPage — guard with location.key so StrictMode double-invoke doesn't log twice
   useEffect(() => {
-    const state = location.state as { timedSet?: { exerciseId: string; set: SessionSet } } | null
+    const state = location.state as { timedSet?: { instanceId: string; set: SessionSet } } | null
     if (state?.timedSet && processedLocationKey.current !== location.key) {
       processedLocationKey.current = location.key
-      logSet(state.timedSet.exerciseId, state.timedSet.set)
+      logSet(state.timedSet.instanceId, state.timedSet.set)
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.state, location.key, location.pathname, logSet, navigate])
@@ -429,16 +438,16 @@ export default function ActiveWorkout() {
             <>
               {session.exercises.map((ex) => (
                 <ExerciseCard
-                  key={ex.exerciseId}
+                  key={ex.instanceId}
                   ex={ex}
-                  onRemoveExercise={() => removeExercise(ex.exerciseId)}
-                  onLogSet={(set) => logSet(ex.exerciseId, set)}
-                  onRemoveLastSet={() => removeLastSet(ex.exerciseId)}
+                  onRemoveExercise={() => removeExercise(ex.instanceId)}
+                  onLogSet={(set) => logSet(ex.instanceId, set)}
+                  onRemoveLastSet={() => removeLastSet(ex.instanceId)}
                   onStartTimer={(dur) => startTimer(dur, ex.exerciseName)}
                   onOpenTimedSet={() => {
                     const lastSet = ex.sets[ex.sets.length - 1]
                     const timedState: TimedSetPageState = {
-                      exerciseId: ex.exerciseId,
+                      instanceId: ex.instanceId,
                       exerciseName: ex.exerciseName,
                       isBodyweight: ex.isBodyweight,
                       isDoubleComponent: ex.isDoubleComponent,
@@ -481,6 +490,7 @@ export default function ActiveWorkout() {
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={handleSelectExercise}
+        presetExerciseIds={workoutExerciseIds}
         alreadyAddedIds={session.exercises.map((e) => e.exerciseId)}
       />
     </>

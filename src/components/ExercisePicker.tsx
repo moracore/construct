@@ -20,6 +20,7 @@ const PlusIcon = () => (
 export default function ExercisePicker({ open, onClose, onSelect, presetExerciseIds = [], alreadyAddedIds }: Props) {
   const [all, setAll] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
+  const [showAll, setShowAll] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -27,12 +28,14 @@ export default function ExercisePicker({ open, onClose, onSelect, presetExercise
         exs.sort((a, b) => a.name.localeCompare(b.name))
         setAll(exs)
         setSearch('')
+        setShowAll(false)
       })
     }
   }, [open])
 
   if (!open) return null
 
+  const hasPreset = presetExerciseIds.length > 0
   const query = search.toLowerCase()
   const filtered = all.filter((e) =>
     e.name.toLowerCase().includes(query) ||
@@ -42,18 +45,22 @@ export default function ExercisePicker({ open, onClose, onSelect, presetExercise
   const preset = filtered.filter((e) => presetExerciseIds.includes(e.id))
   const others = filtered.filter((e) => !presetExerciseIds.includes(e.id))
 
+  // When preset exists and not browsing all and not searching: show only preset
+  const visiblePreset = preset
+  const visibleOthers = (!hasPreset || showAll || query) ? others : []
+
   function handleSelect(ex: Exercise) {
     onSelect(ex)
     onClose()
   }
 
   function ExRow({ ex }: { ex: Exercise }) {
-    const added = alreadyAddedIds.includes(ex.id)
+    const count = alreadyAddedIds.filter((id) => id === ex.id).length
     return (
       <div
-        className={`exercise-item${added ? ' selected' : ''}`}
-        onClick={() => !added && handleSelect(ex)}
-        style={{ opacity: added ? 0.5 : 1, cursor: added ? 'default' : 'pointer' }}
+        className="exercise-item"
+        onClick={() => handleSelect(ex)}
+        style={{ cursor: 'pointer' }}
       >
         <div className="exercise-item-info">
           <div className="exercise-item-name">{ex.name}</div>
@@ -62,13 +69,18 @@ export default function ExercisePicker({ open, onClose, onSelect, presetExercise
               ex.primaryMuscleGroups.join(', '),
               ex.isBodyweight && 'Bodyweight',
               ex.isDoubleComponent && 'L/R',
+              ex.isTimed && 'Timed',
             ].filter(Boolean).join(' · ')}
           </div>
         </div>
-        {added
-          ? <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Added</span>
-          : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(var(--accent-rgb),0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}><PlusIcon /></div>
-        }
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {count > 0 && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>×{count}</span>
+          )}
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(var(--accent-rgb),0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+            <PlusIcon />
+          </div>
+        </div>
       </div>
     )
   }
@@ -120,14 +132,28 @@ export default function ExercisePicker({ open, onClose, onSelect, presetExercise
             </p>
           ) : (
             <>
-              {preset.length > 0 && (
+              {hasPreset && !query && (
+                <p className="section-title" style={{ padding: '4px 0' }}>This Workout</p>
+              )}
+              {visiblePreset.map((ex) => <ExRow key={ex.id} ex={ex} />)}
+
+              {/* Browse all toggle */}
+              {hasPreset && !query && !showAll && others.length > 0 && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ marginTop: 8, color: 'var(--text-muted)', alignSelf: 'center' }}
+                  onClick={() => setShowAll(true)}
+                >
+                  Browse all exercises ({others.length} more)
+                </button>
+              )}
+
+              {visibleOthers.length > 0 && (
                 <>
-                  <p className="section-title" style={{ padding: '4px 0' }}>This Workout</p>
-                  {preset.map((ex) => <ExRow key={ex.id} ex={ex} />)}
-                  {others.length > 0 && <p className="section-title" style={{ padding: '8px 0 4px' }}>All Exercises</p>}
+                  {hasPreset && <p className="section-title" style={{ padding: '8px 0 4px' }}>All Exercises</p>}
+                  {visibleOthers.map((ex) => <ExRow key={ex.id} ex={ex} />)}
                 </>
               )}
-              {others.map((ex) => <ExRow key={ex.id} ex={ex} />)}
             </>
           )}
         </div>
