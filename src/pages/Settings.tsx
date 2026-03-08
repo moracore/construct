@@ -175,23 +175,6 @@ export default function Settings() {
 
     const filename = `construct-backup-${date}.md`
     const blob = new Blob([md], { type: 'text/markdown' })
-
-    if ('showSaveFilePicker' in window) {
-      try {
-        const handle = await (window as any).showSaveFilePicker({
-          suggestedName: filename,
-          types: [{ description: 'Markdown file', accept: { 'text/markdown': ['.md'] } }],
-        })
-        const writable = await handle.createWritable()
-        await writable.write(blob)
-        await writable.close()
-        return
-      } catch (e) {
-        if ((e as any).name === 'AbortError') return
-        // fall through to download fallback
-      }
-    }
-
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
