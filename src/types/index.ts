@@ -9,6 +9,7 @@ export const MUSCLE_GROUPS = [
   'Lats',
   'Traps',
   'Core',
+  'Obliques',
   'Glutes',
   'Quads',
   'Hamstrings',

@@ -960,6 +960,7 @@ input::placeholder {
   cursor: pointer;
   user-select: none;
   overflow: hidden;
+  touch-action: none;
 }
 
 /* All mask layers share the same sizing/positioning.

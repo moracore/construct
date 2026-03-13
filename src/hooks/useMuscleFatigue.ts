@@ -28,7 +28,16 @@ function toISO(d: Date): string {
 // ── Stage 5: per-set volume with timed & bodyweight interception ──────────────
 function setVolume(set: ExerciseSet, ex: Exercise, userBodyweight?: number): number {
   if (ex.isTimed) {
-    const dur = set.duration ?? set.leftDuration ?? set.rightDuration ?? 0
+    let dur: number
+    if (ex.isDoubleComponent) {
+      // Sum both sides; fall back to shared duration if per-side not recorded
+      const hasPerSide = set.leftDuration != null || set.rightDuration != null
+      dur = hasPerSide
+        ? (set.leftDuration ?? 0) + (set.rightDuration ?? 0)
+        : (set.duration ?? 0)
+    } else {
+      dur = set.duration ?? 0
+    }
     const reps = Math.floor(dur / 3)
     const weight = ex.isBodyweight
       ? (userBodyweight ?? 100) * (ex.bodyweightMultiplier ?? 1.0)
@@ -40,8 +49,10 @@ function setVolume(set: ExerciseSet, ex: Exercise, userBodyweight?: number): num
       const w = (userBodyweight ?? 100) * (ex.bodyweightMultiplier ?? 1.0)
       return w * ((set.leftReps ?? 0) + (set.rightReps ?? 0))
     }
-    return (set.leftWeight ?? 0) * (set.leftReps ?? 0)
-         + (set.rightWeight ?? 0) * (set.rightReps ?? 0)
+    // Per-side weights if logged individually; otherwise use the shared weight for both sides
+    const lw = set.leftWeight ?? set.weight ?? 0
+    const rw = set.rightWeight ?? set.weight ?? 0
+    return lw * (set.leftReps ?? 0) + rw * (set.rightReps ?? 0)
   }
   if (ex.isBodyweight) {
     return (userBodyweight ?? 100) * (ex.bodyweightMultiplier ?? 1.0) * (set.reps ?? 0)
@@ -139,7 +150,8 @@ export function useMuscleFatigue(): FatigueResult {
       const currentRaw = computeWindow(logMap, exerciseMap, ubw)
       const opacities: Partial<Record<MuscleGroup, number>> = {}
       for (const [mg, vol] of Object.entries(currentRaw) as [MuscleGroup, number][]) {
-        opacities[mg] = Math.min(1, vol / TARGET_14D_VOLUME)
+        const ratio = vol / TARGET_14D_VOLUME
+        opacities[mg] = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0
       }
 
       // Muscle MVPs — muscles whose volume THIS week exceeds their 4-week weekly average

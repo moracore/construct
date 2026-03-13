@@ -57,7 +57,7 @@ const MUSCLE_TO_GROUP: Partial<Record<string, MuscleGroup>> = {
   hip:        'Hip Flexors',
   lats:       'Lats',
   lowerback:  'Lower Back',
-  obliques:   'Core',
+  obliques:   'Obliques',
   quads:      'Quads',
   reardelts:  'Rear Delts',
   backdelts:  'Rear Delts',
