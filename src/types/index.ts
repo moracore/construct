@@ -14,6 +14,8 @@ export const MUSCLE_GROUPS = [
   'Hamstrings',
   'Calves',
   'Hip Flexors',
+  'Adductors',
+  'Lower Back',
 ] as const
 
 export type MuscleGroup = (typeof MUSCLE_GROUPS)[number]
@@ -25,6 +27,7 @@ export interface Exercise {
   isDoubleComponent: boolean // L/R tracking
   isTimed?: boolean
   timedTargetSeconds?: number
+  bodyweightMultiplier?: number // fraction of user bodyweight that counts as load (e.g. 0.75)
   primaryMuscleGroups: MuscleGroup[]
   secondaryMuscleGroups: MuscleGroup[]
   defaultRestTimerSeconds?: number
@@ -77,4 +80,7 @@ export interface AppSettings {
   theme: 'dark' | 'light' | 'woodland' | 'axe'
   accentColor: string // hex
   defaultRestSeconds?: number
+  userBodyweight?: number    // kg, used for bodyweight exercise volume calculation
+  showGhostMuscles?: boolean // pulse untrained muscles in complement hue (default true)
+  showVolumePercent?: boolean // show ±% delta on week volume metric (default true)
 }

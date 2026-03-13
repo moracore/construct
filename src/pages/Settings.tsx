@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
+import { seedDemoData } from '../utils/seedData'
 import type { DayLog, Exercise, Workout, MuscleGroup } from '../types'
 
 function genId(prefix: string) {
@@ -98,6 +99,9 @@ function SliderRow({ label, value, min, max, gradient, onChange }: {
 export default function Settings() {
   const { theme, accentColor, toggleTheme, setAccentColor } = useTheme()
   const [restSeconds, setRestSeconds] = useState(90)
+  const [bodyweight, setBodyweight] = useState<number>(70)
+  const [showGhost, setShowGhost] = useState(true)
+  const [showVolumePercent, setShowVolumePercent] = useState(true)
 
   const [hSlider, setHSlider] = useState(() => slidersFromHex(accentColor)[0])
   const [sSlider, setSSlider] = useState(() => slidersFromHex(accentColor)[1])
@@ -118,11 +122,15 @@ export default function Settings() {
     setAccentColor(hex)
   }
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [seedStatus, setSeedStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getSettings().then((s) => {
       if (s.defaultRestSeconds) setRestSeconds(s.defaultRestSeconds)
+      if (s.userBodyweight)     setBodyweight(s.userBodyweight)
+      setShowGhost(s.showGhostMuscles !== false)
+      setShowVolumePercent(s.showVolumePercent !== false)
     })
   }, [])
 
@@ -130,6 +138,33 @@ export default function Settings() {
     setRestSeconds(val)
     const s = await getSettings()
     await saveSettings({ ...s, defaultRestSeconds: val })
+  }
+
+  async function handleSeed() {
+    setSeedStatus('Seeding…')
+    const { logs } = await seedDemoData()
+    setSeedStatus(`Seeded ${logs} demo logs ✓`)
+    setTimeout(() => setSeedStatus(null), 5000)
+  }
+
+  async function handleBodyweightChange(val: number) {
+    setBodyweight(val)
+    const s = await getSettings()
+    await saveSettings({ ...s, userBodyweight: val })
+  }
+
+  async function handleGhostToggle() {
+    const next = !showGhost
+    setShowGhost(next)
+    const s = await getSettings()
+    await saveSettings({ ...s, showGhostMuscles: next })
+  }
+
+  async function handleVolumePercentToggle() {
+    const next = !showVolumePercent
+    setShowVolumePercent(next)
+    const s = await getSettings()
+    await saveSettings({ ...s, showVolumePercent: next })
   }
 
   async function handleExport() {
@@ -379,6 +414,21 @@ export default function Settings() {
         {/* Default rest timer */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p className="section-title">Workout</p>
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Bodyweight</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Used for bodyweight exercise volume (kg)</div>
+            </div>
+            <input
+              type="number"
+              min={30}
+              max={300}
+              value={bodyweight}
+              onChange={(e) => handleBodyweightChange(Number(e.target.value))}
+              style={{ width: 72, textAlign: 'right', padding: '6px 10px', fontSize: 15, fontWeight: 600 }}
+            />
+          </div>
+
           <div>
             <div className="row-between" style={{ marginBottom: 10 }}>
               <div>
@@ -401,6 +451,32 @@ export default function Settings() {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
               <span>15s</span><span>5m</span>
             </div>
+          </div>
+        </div>
+
+        {/* Muscle Visualization — Stage 8 */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p className="section-title">Muscle Visualization</p>
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Ghost Inactive Muscles</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Pulse muscles not trained in 2+ weeks</div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={showGhost} onChange={handleGhostToggle} />
+              <div className="toggle-track"><div className="toggle-thumb" /></div>
+            </label>
+          </div>
+
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Show Volume % Change</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>±% delta next to week volume</div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={showVolumePercent} onChange={handleVolumePercentToggle} />
+              <div className="toggle-track"><div className="toggle-thumb" /></div>
+            </label>
           </div>
         </div>
 
@@ -435,6 +511,18 @@ export default function Settings() {
               style={{ display: 'none' }}
               onChange={handleImport}
             />
+          </div>
+
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Seed Demo Data</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {seedStatus ?? '3 weeks · Push / Pull / Legs / Core'}
+              </div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={handleSeed} disabled={!!seedStatus}>
+              Seed
+            </button>
           </div>
         </div>
 
