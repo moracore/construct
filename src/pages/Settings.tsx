@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
-import { seedDemoData } from '../utils/seedData'
 import type { DayLog, Exercise, Workout, MuscleGroup } from '../types'
 
 function genId(prefix: string) {
@@ -122,7 +121,6 @@ export default function Settings() {
     setAccentColor(hex)
   }
   const [importStatus, setImportStatus] = useState<string | null>(null)
-  const [seedStatus, setSeedStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -138,13 +136,6 @@ export default function Settings() {
     setRestSeconds(val)
     const s = await getSettings()
     await saveSettings({ ...s, defaultRestSeconds: val })
-  }
-
-  async function handleSeed() {
-    setSeedStatus('Seeding…')
-    const { logs } = await seedDemoData()
-    setSeedStatus(`Seeded ${logs} demo logs ✓`)
-    setTimeout(() => setSeedStatus(null), 5000)
   }
 
   async function handleBodyweightChange(val: number) {
@@ -480,7 +471,6 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Data */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p className="section-title">Data</p>
 
@@ -511,18 +501,6 @@ export default function Settings() {
               style={{ display: 'none' }}
               onChange={handleImport}
             />
-          </div>
-
-          <div className="row-between">
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>Seed Demo Data</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {seedStatus ?? '3 weeks · Push / Pull / Legs / Core'}
-              </div>
-            </div>
-            <button className="btn btn-secondary btn-sm" onClick={handleSeed} disabled={!!seedStatus}>
-              Seed
-            </button>
           </div>
         </div>
 
