@@ -77,6 +77,24 @@ export interface DayLog {
   updatedAt: number
 }
 
+export type HomePanelWidget =
+  | 'muscle-mvps'
+  | 'week-volume'
+  | 'suggested-targets'
+  | 'weekly-frequency'
+  | 'rest-day-counter'
+  | 'current-streak'
+  | 'last-session'
+  | 'top-exercises'
+  | 'muscle-volume-breakdown'
+  | 'volume-trend'
+
+export const DEFAULT_HOME_SLOTS: [HomePanelWidget, HomePanelWidget, HomePanelWidget] = [
+  'muscle-mvps',
+  'week-volume',
+  'suggested-targets',
+]
+
 export interface AppSettings {
   theme: 'dark' | 'light' | 'woodland' | 'axe'
   accentColor: string // hex
@@ -84,4 +102,6 @@ export interface AppSettings {
   userBodyweight?: number    // kg, used for bodyweight exercise volume calculation
   showGhostMuscles?: boolean // pulse untrained muscles in complement hue (default true)
   showVolumePercent?: boolean // show ±% delta on week volume metric (default true)
+  homePanel?: 'widgets' | 'calendar-only'
+  homePanelSlots?: [HomePanelWidget, HomePanelWidget, HomePanelWidget]
 }

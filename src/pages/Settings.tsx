@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
-import type { DayLog, Exercise, Workout, MuscleGroup } from '../types'
+import type { DayLog, Exercise, Workout, MuscleGroup, HomePanelWidget } from '../types'
+import { DEFAULT_HOME_SLOTS } from '../types'
 
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
@@ -22,6 +23,19 @@ const MoonIcon = () => (
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </svg>
 )
+
+const WIDGET_OPTIONS: { id: HomePanelWidget; label: string }[] = [
+  { id: 'muscle-mvps',             label: 'Muscle MVPs' },
+  { id: 'week-volume',             label: 'Week Volume' },
+  { id: 'suggested-targets',       label: 'Suggested Targets' },
+  { id: 'weekly-frequency',        label: 'Weekly Frequency' },
+  { id: 'rest-day-counter',        label: 'Rest Days' },
+  { id: 'current-streak',          label: 'Streak' },
+  { id: 'last-session',            label: 'Last Session' },
+  { id: 'top-exercises',           label: 'Top Exercises (this week)' },
+  { id: 'muscle-volume-breakdown', label: 'Muscle Volume Breakdown' },
+  { id: 'volume-trend',            label: 'Volume Trend (8 weeks)' },
+]
 
 const ACCENT_PRESETS = [
   { name: 'Coral',         value: '#FF4444' },
@@ -101,6 +115,8 @@ export default function Settings() {
   const [bodyweight, setBodyweight] = useState<number>(70)
   const [showGhost, setShowGhost] = useState(true)
   const [showVolumePercent, setShowVolumePercent] = useState(true)
+  const [homePanel, setHomePanel] = useState<'widgets' | 'calendar-only'>('widgets')
+  const [panelSlots, setPanelSlots] = useState<[HomePanelWidget, HomePanelWidget, HomePanelWidget]>(DEFAULT_HOME_SLOTS)
 
   const [hSlider, setHSlider] = useState(() => slidersFromHex(accentColor)[0])
   const [sSlider, setSSlider] = useState(() => slidersFromHex(accentColor)[1])
@@ -129,6 +145,8 @@ export default function Settings() {
       if (s.userBodyweight)     setBodyweight(s.userBodyweight)
       setShowGhost(s.showGhostMuscles !== false)
       setShowVolumePercent(s.showVolumePercent !== false)
+      setHomePanel(s.homePanel ?? 'widgets')
+      setPanelSlots(s.homePanelSlots ?? DEFAULT_HOME_SLOTS)
     })
   }, [])
 
@@ -156,6 +174,21 @@ export default function Settings() {
     setShowVolumePercent(next)
     const s = await getSettings()
     await saveSettings({ ...s, showVolumePercent: next })
+  }
+
+  async function handleHomePanelToggle() {
+    const next = homePanel === 'calendar-only' ? 'widgets' : 'calendar-only'
+    setHomePanel(next)
+    const s = await getSettings()
+    await saveSettings({ ...s, homePanel: next })
+  }
+
+  async function handleSlotChange(slotIdx: 0 | 1 | 2, widget: HomePanelWidget) {
+    const next = [...panelSlots] as [HomePanelWidget, HomePanelWidget, HomePanelWidget]
+    next[slotIdx] = widget
+    setPanelSlots(next)
+    const s = await getSettings()
+    await saveSettings({ ...s, homePanelSlots: next })
   }
 
   async function handleExport() {
@@ -469,6 +502,49 @@ export default function Settings() {
               <div className="toggle-track"><div className="toggle-thumb" /></div>
             </label>
           </div>
+        </div>
+
+        {/* Home Screen */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p className="section-title">Home Screen</p>
+
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Calendar Only</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Hide body viewer and stats panel</div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={homePanel === 'calendar-only'} onChange={handleHomePanelToggle} />
+              <div className="toggle-track"><div className="toggle-thumb" /></div>
+            </label>
+          </div>
+
+          {homePanel === 'widgets' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="divider" />
+              <p className="section-title" style={{ marginBottom: 2 }}>Panel Slots</p>
+              {([0, 1, 2] as const).map((idx) => (
+                <div key={idx} className="row-between">
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Slot {idx + 1}</div>
+                  <select
+                    value={panelSlots[idx]}
+                    onChange={(e) => handleSlotChange(idx, e.target.value as HomePanelWidget)}
+                    style={{
+                      width: 'auto',
+                      minWidth: 180,
+                      padding: '5px 8px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {WIDGET_OPTIONS.map(({ id, label }) => (
+                      <option key={id} value={id}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
