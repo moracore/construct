@@ -488,7 +488,7 @@ export default function Home() {
               onTouchCancel={onPinchEnd}
               onWheel={onBodyWheel}
             >
-              <div style={{ width: '100%', height: '100%', transform: `scale(${bodyScale})`, transformOrigin: 'center center' }}>
+              <div style={{ width: '65vw', maxWidth: '100%', aspectRatio: '86 / 145', transform: `scale(${bodyScale})`, transformOrigin: 'center center', flexShrink: 0 }}>
                 <BodyProjection muscleOpacity={fatigue.opacities} showGhost={showGhost} ignoredMuscles={ignoredMuscles} />
               </div>
             </div>

@@ -5,6 +5,7 @@ import { parseMarkdownLog } from '../db/parseMarkdown'
 import type { DayLog, Exercise, Workout, MuscleGroup, HomePanelWidget, HomeLayout } from '../types'
 import { DEFAULT_HOME_SLOTS } from '../types'
 import MuscleIgnoreModal from '../components/MuscleIgnoreModal'
+import { loadPreset } from '../presets'
 
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
@@ -146,6 +147,8 @@ export default function Settings() {
     setHSlider(h); setSSlider(sv); setLSlider(lv)
     setAccentColor(hex)
   }
+  const [presetMode, setPresetMode] = useState<'simple' | 'extensive' | 'custom' | undefined>(undefined)
+  const [presetStatus, setPresetStatus] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -160,6 +163,7 @@ export default function Settings() {
       setHomeLayout(layout)
       setPanelSlots(s.homePanelSlots ?? DEFAULT_HOME_SLOTS)
       setIgnoredMuscles(s.ignoredMuscles ?? [])
+      setPresetMode(s.presetMode)
     })
   }, [])
 
@@ -204,6 +208,24 @@ export default function Settings() {
     await saveSettings({ ...s, homePanelSlots: next })
   }
 
+
+  async function handlePresetSwitch(mode: 'simple' | 'extensive' | 'custom') {
+    setPresetMode(mode)
+    const s = await getSettings()
+    await saveSettings({ ...s, presetMode: mode })
+    if (mode === 'custom') {
+      setPresetStatus('Switched to Custom — no exercises added or removed.')
+    } else {
+      setPresetStatus('Loading exercises…')
+      try {
+        await loadPreset(mode)
+        setPresetStatus(`${mode === 'simple' ? 'Simple' : 'Extensive'} exercises added (existing ones kept).`)
+      } catch {
+        setPresetStatus('Failed to load exercises.')
+      }
+    }
+    setTimeout(() => setPresetStatus(null), 5000)
+  }
 
   async function handleExport() {
     const [logs, exercises, workouts] = await Promise.all([
@@ -566,6 +588,36 @@ export default function Settings() {
             onChange={handleIgnoredMusclesChange}
           />
         )}
+
+        {/* Exercise Library */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p className="section-title">Exercise Library</p>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            Current: <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+              {presetMode === 'simple' ? 'Simple' : presetMode === 'extensive' ? 'Extensive' : presetMode === 'custom' ? 'Custom' : 'Not set'}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Switching to Simple or Extensive adds exercises without removing existing ones.
+          </div>
+          {presetStatus && (
+            <div style={{ fontSize: 13, color: 'var(--accent)', padding: '6px 0' }}>
+              {presetStatus}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['simple', 'extensive', 'custom'] as const).map((mode) => (
+              <button
+                key={mode}
+                className={presetMode === mode ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                style={{ flex: 1, textTransform: 'capitalize' }}
+                onClick={() => handlePresetSwitch(mode)}
+              >
+                {mode === 'simple' ? 'Simple' : mode === 'extensive' ? 'Extensive' : 'Custom'}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p className="section-title">Data</p>

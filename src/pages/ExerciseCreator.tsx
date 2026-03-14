@@ -28,6 +28,7 @@ export default function ExerciseCreator() {
 
   const [name, setName] = useState('')
   const [isBodyweight, setIsBodyweight] = useState(false)
+  const [bodyweightType, setBodyweightType] = useState<'standard' | 'assisted' | 'weighted'>('standard')
   const [isDoubleComponent, setIsDoubleComponent] = useState(false)
   const [isTimed, setIsTimed] = useState(false)
   const [timedTargetSeconds, setTimedTargetSeconds] = useState('')
@@ -44,6 +45,7 @@ export default function ExerciseCreator() {
         if (ex) {
           setName(ex.name)
           setIsBodyweight(ex.isBodyweight)
+          setBodyweightType(ex.bodyweightType ?? 'standard')
           setIsDoubleComponent(ex.isDoubleComponent)
           setIsTimed(ex.isTimed ?? false)
           setTimedTargetSeconds(ex.timedTargetSeconds ? String(ex.timedTargetSeconds) : '')
@@ -65,6 +67,7 @@ export default function ExerciseCreator() {
       id: id || generateId(),
       name: name.trim(),
       isBodyweight,
+      bodyweightType: isBodyweight ? bodyweightType : undefined,
       isDoubleComponent,
       isTimed: isTimed || undefined,
       timedTargetSeconds: isTimed && timedTargetSeconds ? parseInt(timedTargetSeconds) : undefined,
@@ -130,6 +133,39 @@ export default function ExerciseCreator() {
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -8 }}>
             Weight field will be hidden during logging
           </p>
+
+          {isBodyweight && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 4 }}>
+              <div style={{ display: 'flex', gap: 0, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                {(['standard', 'assisted', 'weighted'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setBodyweightType(type)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 4px',
+                      fontSize: 13,
+                      fontWeight: bodyweightType === type ? 600 : 400,
+                      background: bodyweightType === type ? 'var(--accent)' : 'transparent',
+                      color: bodyweightType === type ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all var(--transition)',
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                {bodyweightType === 'standard' && 'Uses 2/3 of your bodyweight as load — reps only, no weight input'}
+                {bodyweightType === 'assisted' && 'Uses 1/3 of your bodyweight — for machine-assisted or band-assisted moves'}
+                {bodyweightType === 'weighted' && 'Add extra weight on top of 2/3 bodyweight — e.g. weighted dips or pull-ups'}
+              </p>
+            </div>
+          )}
 
           <div className="divider" />
 

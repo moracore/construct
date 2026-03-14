@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
 import RestTimer from './components/RestTimer'
+import WelcomeScreen from './components/WelcomeScreen'
 import Home from './pages/Home'
 import Calendar from './pages/Calendar'
 import Library from './pages/Library'
@@ -14,6 +16,7 @@ import ActiveWorkout from './pages/log/ActiveWorkout'
 import CompletionSummary from './pages/log/CompletionSummary'
 import TimedSetPage from './pages/log/TimedSetPage'
 import { useActiveWorkout } from './context/ActiveWorkoutContext'
+import { getSettings } from './db'
 
 // Log entry point: redirect to active session if one exists
 function LogEntry() {
@@ -23,6 +26,15 @@ function LogEntry() {
 }
 
 export default function App() {
+  // Start as true (assume complete) to avoid flashing the welcome screen on every load
+  const [onboarded, setOnboarded] = useState(true)
+
+  useEffect(() => {
+    getSettings().then((s) => {
+      if (!s.onboardingComplete) setOnboarded(false)
+    })
+  }, [])
+
   return (
     <>
       <Routes>
@@ -43,6 +55,7 @@ export default function App() {
       </Routes>
       <RestTimer />
       <BottomNav />
+      {!onboarded && <WelcomeScreen onComplete={() => setOnboarded(true)} />}
     </>
   )
 }

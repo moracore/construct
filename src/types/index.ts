@@ -25,6 +25,7 @@ export interface Exercise {
   id: string
   name: string
   isBodyweight: boolean
+  bodyweightType?: 'standard' | 'assisted' | 'weighted'
   isDoubleComponent: boolean // L/R tracking
   isTimed?: boolean
   timedTargetSeconds?: number
@@ -108,4 +109,6 @@ export interface AppSettings {
   homeLayout?: HomeLayout    // home screen layout mode (default 'body-full')
   homePanelSlots?: [HomePanelWidget, HomePanelWidget, HomePanelWidget]
   ignoredMuscles?: MuscleGroup[] // excluded from ghost view and suggested targets
+  presetMode?: 'simple' | 'extensive' | 'custom'
+  onboardingComplete?: boolean
 }

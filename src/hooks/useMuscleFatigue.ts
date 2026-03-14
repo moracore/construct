@@ -105,6 +105,15 @@ function computeStreak(logDates: Set<string>, today: Date): number {
 
 // ── Volume helpers ─────────────────────────────────────────────────────────────
 
+// Resolve effective bodyweight load per rep for a bodyweight exercise
+function resolveBodyweightLoad(ex: Exercise, set: ExerciseSet, userBodyweight?: number): number {
+  const bw = userBodyweight ?? 100
+  if (ex.bodyweightType === 'assisted') return bw * (1 / 3)
+  if (ex.bodyweightType === 'weighted') return bw * (2 / 3) + (set.weight ?? 0)
+  // standard, undefined, or legacy fallback: 2/3 of bodyweight
+  return bw * (2 / 3)
+}
+
 // Stage 5: per-set volume with timed & bodyweight interception
 function setVolume(set: ExerciseSet, ex: Exercise, userBodyweight?: number): number {
   if (ex.isTimed) {
@@ -119,13 +128,13 @@ function setVolume(set: ExerciseSet, ex: Exercise, userBodyweight?: number): num
     }
     const reps = Math.floor(dur / 3)
     const weight = ex.isBodyweight
-      ? (userBodyweight ?? 100) * (ex.bodyweightMultiplier ?? 1.0)
+      ? resolveBodyweightLoad(ex, set, userBodyweight)
       : (set.weight ?? 0)
     return weight * reps
   }
   if (ex.isDoubleComponent) {
     if (ex.isBodyweight) {
-      const w = (userBodyweight ?? 100) * (ex.bodyweightMultiplier ?? 1.0)
+      const w = resolveBodyweightLoad(ex, set, userBodyweight)
       return w * ((set.leftReps ?? 0) + (set.rightReps ?? 0))
     }
     // Per-side weights if logged individually; fall back to the shared weight
@@ -134,7 +143,7 @@ function setVolume(set: ExerciseSet, ex: Exercise, userBodyweight?: number): num
     return lw * (set.leftReps ?? 0) + rw * (set.rightReps ?? 0)
   }
   if (ex.isBodyweight) {
-    return (userBodyweight ?? 100) * (ex.bodyweightMultiplier ?? 1.0) * (set.reps ?? 0)
+    return resolveBodyweightLoad(ex, set, userBodyweight) * (set.reps ?? 0)
   }
   return (set.weight ?? 0) * (set.reps ?? 0)
 }
@@ -299,7 +308,7 @@ export function useMuscleFatigue(): FatigueResult {
           if (!ex) continue
           let vol = 0
           for (const set of logged.sets) vol += setVolume(set, ex, ubw)
-          const entry = exerciseVolMap.get(logged.exerciseId) ?? { name: logged.exerciseName, volume: 0 }
+          const entry = exerciseVolMap.get(logged.exerciseId) ?? { name: ex.name, volume: 0 }
           entry.volume += vol
           exerciseVolMap.set(logged.exerciseId, entry)
         }

@@ -18,6 +18,7 @@ export interface SessionExercise {
   exerciseId: string
   exerciseName: string
   isBodyweight: boolean
+  bodyweightType?: 'standard' | 'assisted' | 'weighted'
   isDoubleComponent: boolean
   isTimed?: boolean
   timedTargetSeconds?: number

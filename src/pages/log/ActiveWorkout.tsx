@@ -131,16 +131,28 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
     />
   )
 
+  const bwLabel = ex.bodyweightType === 'assisted' ? 'BW-' : 'BW'
+
+  function renderWeightCell(width: number) {
+    if (!ex.isBodyweight) return inp('kg', 'weight', width)
+    if (ex.bodyweightType === 'weighted') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          {inp('+kg', 'weight', width)}
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>extra</span>
+        </div>
+      )
+    }
+    return <span style={{ width, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>{bwLabel}</span>
+  }
+
   return (
     <div className="set-input-row">
       <span className="set-number">Set {setNumber}</span>
 
       {ex.isDoubleComponent ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-          {!ex.isBodyweight
-            ? inp('kg', 'weight', 60)
-            : <span style={{ width: 60, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>BW</span>
-          }
+          {renderWeightCell(60)}
           <span style={{ width: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
           {inp('reps', 'leftReps', 44)}
@@ -150,10 +162,7 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-          {!ex.isBodyweight
-            ? inp('kg', 'weight', 72)
-            : <span style={{ width: 72, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>BW</span>
-          }
+          {renderWeightCell(72)}
           <span style={{ width: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
           {inp('reps', 'reps', 52)}
         </div>
@@ -170,12 +179,19 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
 }
 
 // ── Set display row ─────────────────────────────────────────────────────────
-function SetRow({ set, number, isDoubleComponent, isBodyweight, isTimed }: { set: SessionSet; number: number; isDoubleComponent: boolean; isBodyweight: boolean; isTimed?: boolean }) {
+function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, isTimed }: { set: SessionSet; number: number; isDoubleComponent: boolean; isBodyweight: boolean; bodyweightType?: 'standard' | 'assisted' | 'weighted'; isTimed?: boolean }) {
   const cell = (content: string | number, width: number, muted = false) => (
     <span style={{ width, textAlign: 'center', fontSize: 14, color: muted ? 'var(--text-muted)' : 'var(--text-secondary)', flexShrink: 0 }}>
       {content}
     </span>
   )
+
+  function bwWeightLabel(w: number | undefined): string {
+    if (!isBodyweight) return `${w ?? '—'}kg`
+    if (bodyweightType === 'assisted') return 'BW-'
+    if (bodyweightType === 'weighted') return w ? `BW+${w}kg` : 'BW'
+    return 'BW'
+  }
 
   const w = set.weight ?? set.leftWeight
 
@@ -185,7 +201,7 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, isTimed }: { set
         <span className="set-number">Set {number}</span>
         {isDoubleComponent ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-            {cell(isBodyweight ? (w ? `BW+${w}kg` : 'BW') : `${w ?? '—'}kg`, 60)}
+            {cell(bwWeightLabel(w), 60)}
             {cell('·', 16, true)}
             <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
             {cell(formatDuration(set.leftDuration ?? 0), 54)}
@@ -195,7 +211,7 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, isTimed }: { set
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-            {cell(isBodyweight ? (set.weight ? `BW+${set.weight}kg` : 'BW') : `${set.weight ?? '—'}kg`, 72)}
+            {cell(bwWeightLabel(set.weight), 72)}
             {cell('·', 20, true)}
             {cell(formatDuration(set.duration ?? 0), 72)}
           </div>
@@ -209,7 +225,7 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, isTimed }: { set
       <span className="set-number">Set {number}</span>
       {isDoubleComponent ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-          {cell(isBodyweight ? (w ? `BW+${w}kg` : 'BW') : `${w ?? '—'}kg`, 60)}
+          {cell(bwWeightLabel(w), 60)}
           {cell('×', 16, true)}
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
           {cell(set.leftReps ?? set.reps, 44)}
@@ -219,7 +235,7 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, isTimed }: { set
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-          {cell(isBodyweight ? (set.weight ? `BW+${set.weight}kg` : 'BW') : `${set.weight ?? '—'}kg`, 72)}
+          {cell(bwWeightLabel(set.weight), 72)}
           {cell('×', 20, true)}
           {cell(set.reps, 52)}
         </div>
@@ -260,8 +276,15 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
     onStartTimer(duration)
   }
 
+  function bwTypeLabel(): string {
+    if (!ex.isBodyweight) return 'Weighted'
+    if (ex.bodyweightType === 'assisted') return 'BW Assisted'
+    if (ex.bodyweightType === 'weighted') return 'BW + Weight'
+    return 'Bodyweight'
+  }
+
   const typeLabel = [
-    ex.isTimed ? 'Timed' : (ex.isBodyweight ? 'Bodyweight' : 'Weighted'),
+    ex.isTimed ? 'Timed' : bwTypeLabel(),
     ex.isDoubleComponent ? 'L/R' : null,
     ex.defaultRestSeconds ? `${ex.defaultRestSeconds}s rest` : '90s rest',
   ].filter(Boolean).join(' · ')
@@ -291,6 +314,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
               number={i + 1}
               isDoubleComponent={ex.isDoubleComponent}
               isBodyweight={ex.isBodyweight}
+              bodyweightType={ex.bodyweightType}
               isTimed={ex.isTimed}
             />
           ))}
@@ -356,6 +380,7 @@ export default function ActiveWorkout() {
         exerciseId: ex.id,
         exerciseName: ex.name,
         isBodyweight: ex.isBodyweight,
+        bodyweightType: ex.bodyweightType,
         isDoubleComponent: ex.isDoubleComponent,
         isTimed: ex.isTimed,
         timedTargetSeconds: ex.timedTargetSeconds,
@@ -391,6 +416,7 @@ export default function ActiveWorkout() {
       exerciseId: ex.id,
       exerciseName: ex.name,
       isBodyweight: ex.isBodyweight,
+      bodyweightType: ex.bodyweightType,
       isDoubleComponent: ex.isDoubleComponent,
       isTimed: ex.isTimed,
       timedTargetSeconds: ex.timedTargetSeconds,

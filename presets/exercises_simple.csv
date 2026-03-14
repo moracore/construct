@@ -1,0 +1,93 @@
+workout,exercise,main muscle(s),secondary muscle(s),bodyweight?,BW + extra weight,Assisted? BW - extra weight,Timed?,LR?
+Push,Bench Press (Dumbbells),Chest,"Tricep, Front Delts",,,,,
+,Bench Press (Barbell),Chest,"Tricep, Front Delts",,,,,
+,Bench Press (Machine),Chest,"Tricep, Front Delts",,,,,
+,Incline Bench Press (Dumbbells),Chest,"Tricep, Front Delts",,,,,
+,Incline Bench Press (Barbell),Chest,"Tricep, Front Delts",,,,,
+,Include Bench Press (Machine),Chest,"Tricep, Front Delts",,,,,
+,Dips,Chest,"Tricep, Front Delts",TRUE,,,,
+,Dips (Weighted),Chest,"Tricep, Front Delts",,TRUE,,,
+,Dips (Machine),Chest,"Tricep, Front Delts",,,,,
+,Shoulder Press (Dumbbells),Front Delts,"Tricep, Side Delts",,,,,
+,Shoulder Press (Barbell),Front Delts,"Tricep, Side Delts",,,,,
+,Shoulder Press (Machine),Front Delts,"Tricep, Side Delts",,,,,
+,Chest Fly (Dumbbells),Chest,Front Delts,,,,,
+,Chest Fly (Machine),Chest,Front Delts,,,,,
+,Chest Fly (Cable),Chest,Front Delts,,,,,
+,Crossovers (Cable),Chest,"Triceps, Front Delts",,,,,
+,Push-ups,Chest,"Triceps, Front Delts",TRUE,,,,
+,Push-ups (Weighted),Chest,"Triceps, Front Delts",,TRUE,,,
+,Lateral Raises (L/R Cable),Side Delts,,,,,,TRUE
+,Lateral Raises (Cable),Side Delts,,,,,,
+,Lateral Raises (Dumbbells),Side Delts,,,,,,
+,Lateral Raises (Machine),Side Delts,,,,,,
+,Pushdowns (Cable),Triceps,Front Delts,,,,,
+,Overhead Tricep Extensions (Cable),Triceps,Front Delts,,,,,
+,Overhead Tricep Extensions (Dumbbells L/R),Triceps,Front Delts,,,,,TRUE
+,Overhead Tricep Extensions (Dumbbell),Triceps,Front Delts,,,,,
+Pull,Rows (Close-grip Cable),Lats,"Traps, Biceps, Rear Delts",,,,,
+,Rows (Wide-grip Cable),Traps,"Lats, Biceps, Rear Delts",,,,,
+,Rows (Machine),"Lats, Traps","Biceps, Rear Delts",,,,,
+,Rows (Barbell),"Lats, Traps","Biceps, Rear Delts",,,,,
+,Pulldowns (Close-grip Cable),,,,,,,
+,Pulldowns (Close-grip Machine),,,,,,,
+,Pullups (Wide-grip),Lats,"Viceps, Traps, Rear Delts",TRUE,,,,
+,Pul-ups (Underhand Close-Grip),"Lats, Biceps","Traps, Rear Delts",TRUE,,,,
+,Pul-ups (Close-grip),Lats,"Viceps, Traps, Rear Delts",TRUE,,,,
+,Pull-ups (Assisted),Lats,"Viceps, Traps, Rear Delts",,,TRUE,,
+,Pull-ups (Wide-grip Weighted),Lats,"Viceps, Traps, Rear Delts",,TRUE,,,
+,Pull-ups (Close-grip Weighted),Lats,"Viceps, Traps, Rear Delts",,TRUE,,,
+,Curls (Dumbbell),Biceps,,,,,,
+,Curls (Dumbbell L/R),Biceps,,,,,,TRUE
+,Curls (Preacher Dumbbell L/R),Biceps,,,,,,TRUE
+,Curls (Preacher Barbell),,,,,,,
+,Curls (Barbell),Biceps,,,,,,
+,Curls (Machine),Biceps,,,,,,
+,Curls (Machine L/R),Biceps,,,,,,TRUE
+,Curls (Cable),Biceps,,,,,,
+,Curls (Cable L/R),Biceps,,,,,,TRUE
+Legs,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,workout,exercise,main muscle(s),secondary muscle(s),bodyweight?,BW + extra weight,Assisted? BW - extra weight,Timed?,LR?
+,,,,,,Push,Bench Press,Chest,"Front Delts, Triceps"
+,,,,,,,Dips,Chest,"Front Delts, Triceps",TRUE,TRUE
+,,,,,,,Shoulder Press,Front Delts,"Side Delts, Triceps"
+,,,,,,,Chest Fly,Chest,Front Delts
+,,,,,,,Crossovers,Chest,"Front Delts, Triceps"
+,,,,,,,Push-ups,Chest,"Front Delts, Triceps",TRUE,TRUE
+,,,,,,,Lateral Raises,Side Delts,,,,,,TRUE
+,,,,,,,Pushdowns,Triceps,Front Delts
+,,,,,,,Overhead Tricep Extensions,Triceps,Front Delts,,,,,TRUE
+,,,,,,Pull,Rows,"Lats, Traps","Biceps, Rear Delts"
+,,,,,,,Pulldowns,Lats,"Biceps, Rear Delts"
+,,,,,,,Pull-ups,Lats,"Biceps, Rear Delts, Traps",TRUE,TRUE,TRUE
+,,,,,,,Curls,Biceps,,,,,,TRUE
+,,,,,,,Wrist Curls,Forearms
+Core,,,,,,,Reverse Wrist Curls,Forearms
+,,,,,,,Farmers Walk,Forearms,"Core, Traps",,TRUE,,TRUE
+,,,,,,,Back Extensions,Lower Back,"Glutes, Hamstrings",TRUE
+,,,,,,,Good Mornings,Lower Back,"Glutes, Hamstrings"
+,,,,,,,Face Pulls,Rear Delts,Traps
+,,,,,,,Reverse Pec Deck,Rear Delts
+,,,,,,Legs,Squats,"Glutes, Quads","Core, Hamstrings"
+,,,,,,,Leg Press,"Glutes, Quads",Hamstrings
+,,,,,,,Lunges,"Glutes, Quads",Hamstrings,,,,,TRUE
+,,,,,,,Bulgarian Split Squats,"Glutes, Quads",Hamstrings,,,,,TRUE
+,,,,,,,Romanian Deadlifts,"Glutes, Hamstrings","Core, Lower Back"
+,,,,,,,Leg Extensions,Quads
+,,,,,,,Leg Curls,Hamstrings
+,,,,,,,Calf Raises,Calves,,,,,,TRUE
+,,,,,,,Hip Thrusts,Glutes,Hamstrings
+,,,,,,,Glute Kickbacks,Glutes,,,,,,TRUE
+,,,,,,,Abductors,Glutes
+,,,,,,,Adductors,Adductors
+,,,,,,Core,Crunches,Core,,TRUE
+,,,,,,,Cable Crunches,Core,Core
+,,,,,,,Leg Raises,Core,Hip Flexors,TRUE
+,,,,,,,Planks,Core,Front Delts,TRUE,TRUE,,TRUE
+,,,,,,,Russian Twists,Obliques,Core,,,,,TRUE
+,,,,,,,Ab Wheel Rollouts,Core,Lats,TRUE
