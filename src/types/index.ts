@@ -80,6 +80,7 @@ export interface DayLog {
 export type HomePanelWidget =
   | 'muscle-mvps'
   | 'week-volume'
+  | 'week-volume-pct'
   | 'suggested-targets'
   | 'weekly-frequency'
   | 'rest-day-counter'
@@ -88,6 +89,9 @@ export type HomePanelWidget =
   | 'top-exercises'
   | 'muscle-volume-breakdown'
   | 'volume-trend'
+
+/** Home screen layout mode */
+export type HomeLayout = 'body-full' | 'body-only' | 'calendar-only'
 
 export const DEFAULT_HOME_SLOTS: [HomePanelWidget, HomePanelWidget, HomePanelWidget] = [
   'muscle-mvps',
@@ -101,7 +105,7 @@ export interface AppSettings {
   defaultRestSeconds?: number
   userBodyweight?: number    // kg, used for bodyweight exercise volume calculation
   showGhostMuscles?: boolean // pulse untrained muscles in complement hue (default true)
-  showVolumePercent?: boolean // show ±% delta on week volume metric (default true)
-  homePanel?: 'widgets' | 'calendar-only'
+  homeLayout?: HomeLayout    // home screen layout mode (default 'body-full')
   homePanelSlots?: [HomePanelWidget, HomePanelWidget, HomePanelWidget]
+  ignoredMuscles?: MuscleGroup[] // excluded from ghost view and suggested targets
 }

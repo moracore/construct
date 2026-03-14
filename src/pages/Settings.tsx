@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
-import type { DayLog, Exercise, Workout, MuscleGroup, HomePanelWidget } from '../types'
+import type { DayLog, Exercise, Workout, MuscleGroup, HomePanelWidget, HomeLayout } from '../types'
 import { DEFAULT_HOME_SLOTS } from '../types'
+import MuscleIgnoreModal from '../components/MuscleIgnoreModal'
 
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
@@ -27,6 +28,7 @@ const MoonIcon = () => (
 const WIDGET_OPTIONS: { id: HomePanelWidget; label: string }[] = [
   { id: 'muscle-mvps',             label: 'Muscle MVPs' },
   { id: 'week-volume',             label: 'Week Volume' },
+  { id: 'week-volume-pct',         label: 'Week Volume + % Change' },
   { id: 'suggested-targets',       label: 'Suggested Targets' },
   { id: 'weekly-frequency',        label: 'Weekly Frequency' },
   { id: 'rest-day-counter',        label: 'Rest Days' },
@@ -36,6 +38,13 @@ const WIDGET_OPTIONS: { id: HomePanelWidget; label: string }[] = [
   { id: 'muscle-volume-breakdown', label: 'Muscle Volume Breakdown' },
   { id: 'volume-trend',            label: 'Volume Trend (8 weeks)' },
 ]
+
+const HOME_LAYOUT_CYCLE: HomeLayout[] = ['body-full', 'body-only', 'calendar-only']
+const HOME_LAYOUT_LABELS: Record<HomeLayout, string> = {
+  'body-full':     'Calendar + Body',
+  'body-only':     'Body Only',
+  'calendar-only': 'Calendar Only',
+}
 
 const ACCENT_PRESETS = [
   { name: 'Coral',         value: '#FF4444' },
@@ -114,9 +123,10 @@ export default function Settings() {
   const [restSeconds, setRestSeconds] = useState(90)
   const [bodyweight, setBodyweight] = useState<number>(70)
   const [showGhost, setShowGhost] = useState(true)
-  const [showVolumePercent, setShowVolumePercent] = useState(true)
-  const [homePanel, setHomePanel] = useState<'widgets' | 'calendar-only'>('widgets')
+  const [homeLayout, setHomeLayout] = useState<HomeLayout>('body-full')
   const [panelSlots, setPanelSlots] = useState<[HomePanelWidget, HomePanelWidget, HomePanelWidget]>(DEFAULT_HOME_SLOTS)
+  const [ignoredMuscles, setIgnoredMuscles] = useState<MuscleGroup[]>([])
+  const [showMuscleModal, setShowMuscleModal] = useState(false)
 
   const [hSlider, setHSlider] = useState(() => slidersFromHex(accentColor)[0])
   const [sSlider, setSSlider] = useState(() => slidersFromHex(accentColor)[1])
@@ -144,9 +154,12 @@ export default function Settings() {
       if (s.defaultRestSeconds) setRestSeconds(s.defaultRestSeconds)
       if (s.userBodyweight)     setBodyweight(s.userBodyweight)
       setShowGhost(s.showGhostMuscles !== false)
-      setShowVolumePercent(s.showVolumePercent !== false)
-      setHomePanel(s.homePanel ?? 'widgets')
+      const raw = s.homeLayout ?? (s as any).homePanel
+      const layout: HomeLayout =
+        raw === 'body-full' || raw === 'body-only' || raw === 'calendar-only' ? raw : 'body-full'
+      setHomeLayout(layout)
       setPanelSlots(s.homePanelSlots ?? DEFAULT_HOME_SLOTS)
+      setIgnoredMuscles(s.ignoredMuscles ?? [])
     })
   }, [])
 
@@ -169,18 +182,18 @@ export default function Settings() {
     await saveSettings({ ...s, showGhostMuscles: next })
   }
 
-  async function handleVolumePercentToggle() {
-    const next = !showVolumePercent
-    setShowVolumePercent(next)
+  async function handleIgnoredMusclesChange(next: MuscleGroup[]) {
+    setIgnoredMuscles(next)
     const s = await getSettings()
-    await saveSettings({ ...s, showVolumePercent: next })
+    await saveSettings({ ...s, ignoredMuscles: next })
   }
 
-  async function handleHomePanelToggle() {
-    const next = homePanel === 'calendar-only' ? 'widgets' : 'calendar-only'
-    setHomePanel(next)
+  async function handleLayoutCycle() {
+    const idx = HOME_LAYOUT_CYCLE.indexOf(homeLayout)
+    const next = HOME_LAYOUT_CYCLE[(idx + 1) % HOME_LAYOUT_CYCLE.length]
+    setHomeLayout(next)
     const s = await getSettings()
-    await saveSettings({ ...s, homePanel: next })
+    await saveSettings({ ...s, homeLayout: next })
   }
 
   async function handleSlotChange(slotIdx: 0 | 1 | 2, widget: HomePanelWidget) {
@@ -190,6 +203,7 @@ export default function Settings() {
     const s = await getSettings()
     await saveSettings({ ...s, homePanelSlots: next })
   }
+
 
   async function handleExport() {
     const [logs, exercises, workouts] = await Promise.all([
@@ -478,9 +492,46 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Muscle Visualization — Stage 8 */}
+        {/* Home Screen */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p className="section-title">Muscle Visualization</p>
+          <p className="section-title">Home Screen</p>
+
+          {/* Layout cycle */}
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Layout</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{HOME_LAYOUT_LABELS[homeLayout]}</div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={handleLayoutCycle}>
+              Cycle
+            </button>
+          </div>
+
+          {/* Panel slots — only shown when layout has stats */}
+          {homeLayout === 'body-full' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="divider" />
+              <p className="section-title" style={{ marginBottom: 2 }}>Panel Slots</p>
+              {([0, 1, 2] as const).map((idx) => (
+                <div key={idx} className="row-between">
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Slot {idx + 1}</div>
+                  <select
+                    value={panelSlots[idx]}
+                    onChange={(e) => handleSlotChange(idx, e.target.value as HomePanelWidget)}
+                    style={{ width: 'auto', minWidth: 180, padding: '5px 8px', fontSize: 13, fontWeight: 500 }}
+                  >
+                    {WIDGET_OPTIONS.map(({ id, label }) => (
+                      <option key={id} value={id}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="divider" />
+
+          {/* Ghost inactive muscles */}
           <div className="row-between">
             <div>
               <div style={{ fontSize: 15, fontWeight: 500 }}>Ghost Inactive Muscles</div>
@@ -492,60 +543,29 @@ export default function Settings() {
             </label>
           </div>
 
+          {/* Ignored muscles */}
           <div className="row-between">
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>Show Volume % Change</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>±% delta next to week volume</div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Ignored Muscles</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {ignoredMuscles.length === 0
+                  ? 'None — all muscles tracked'
+                  : `${ignoredMuscles.length} muscle${ignoredMuscles.length !== 1 ? 's' : ''} ignored`}
+              </div>
             </div>
-            <label className="toggle">
-              <input type="checkbox" checked={showVolumePercent} onChange={handleVolumePercentToggle} />
-              <div className="toggle-track"><div className="toggle-thumb" /></div>
-            </label>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowMuscleModal(true)}>
+              Configure
+            </button>
           </div>
         </div>
 
-        {/* Home Screen */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p className="section-title">Home Screen</p>
-
-          <div className="row-between">
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>Calendar Only</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Hide body viewer and stats panel</div>
-            </div>
-            <label className="toggle">
-              <input type="checkbox" checked={homePanel === 'calendar-only'} onChange={handleHomePanelToggle} />
-              <div className="toggle-track"><div className="toggle-thumb" /></div>
-            </label>
-          </div>
-
-          {homePanel === 'widgets' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="divider" />
-              <p className="section-title" style={{ marginBottom: 2 }}>Panel Slots</p>
-              {([0, 1, 2] as const).map((idx) => (
-                <div key={idx} className="row-between">
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Slot {idx + 1}</div>
-                  <select
-                    value={panelSlots[idx]}
-                    onChange={(e) => handleSlotChange(idx, e.target.value as HomePanelWidget)}
-                    style={{
-                      width: 'auto',
-                      minWidth: 180,
-                      padding: '5px 8px',
-                      fontSize: 13,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {WIDGET_OPTIONS.map(({ id, label }) => (
-                      <option key={id} value={id}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {showMuscleModal && (
+          <MuscleIgnoreModal
+            ignored={ignoredMuscles}
+            onClose={() => setShowMuscleModal(false)}
+            onChange={handleIgnoredMusclesChange}
+          />
+        )}
 
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p className="section-title">Data</p>

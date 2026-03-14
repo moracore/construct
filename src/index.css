@@ -1086,7 +1086,10 @@ input::placeholder {
   -webkit-mask-size: contain;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
-  transform: translateY(-5%);
+  transform: translateY(-5%) translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  will-change: mask-image;
 }
 
 /* Body silhouette fill — muted theme colour */
@@ -1113,6 +1116,104 @@ input::placeholder {
 .body-muscle-ghost {
   filter: hue-rotate(180deg);
   animation: muscle-ghost 3s ease-in-out infinite;
+}
+
+/* ── Muscle ignore modal ───────────────────────────────────────────────── */
+.muscle-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.muscle-modal-sheet {
+  width: 100%;
+  background: var(--bg-elevated);
+  border-radius: 20px 20px 0 0;
+  padding: 12px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.muscle-modal-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  align-self: center;
+  margin-bottom: 2px;
+}
+
+.muscle-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.muscle-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.muscle-modal-close {
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.muscle-modal-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.muscle-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.muscle-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.muscle-chip-ignored {
+  border-color: transparent;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.muscle-chip-x {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 /* ── Week calendar rows ────────────────────────────────────────────────── */

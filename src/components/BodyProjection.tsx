@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { MuscleGroup } from '../types'
 
 // ── Asset imports ─────────────────────────────────────────────────────────────
@@ -100,11 +100,31 @@ interface Props {
   // null while data is still loading — prevents untrained ghost flicker on mount
   muscleOpacity: Partial<Record<MuscleGroup, number>> | null
   showGhost?: boolean
+  ignoredMuscles?: MuscleGroup[]
+  /** Automatically cycle through angles — for decorative non-interactive use */
+  autoSpin?: boolean
+  /** Interval in ms between angle steps when autoSpin is true (default 650) */
+  spinInterval?: number
+  /** When false, disables drag interaction (default true) */
+  interactive?: boolean
 }
 
-export default function BodyProjection({ muscleOpacity, showGhost = true }: Props) {
+export default function BodyProjection({
+  muscleOpacity,
+  showGhost = true,
+  ignoredMuscles = [],
+  autoSpin = false,
+  spinInterval = 650,
+  interactive = true,
+}: Props) {
   const [angleIdx, setAngleIdx] = useState(0)
   const drag = useRef({ active: false, startX: 0, startAngle: 0 })
+
+  useEffect(() => {
+    if (!autoSpin) return
+    const id = setInterval(() => setAngleIdx((prev) => (prev + 1) % 6), spinInterval)
+    return () => clearInterval(id)
+  }, [autoSpin, spinInterval])
 
   const { assets, mirror } = ANGLE_DEFS[angleIdx]
   const loaded = muscleOpacity !== null
@@ -132,11 +152,15 @@ export default function BodyProjection({ muscleOpacity, showGhost = true }: Prop
   return (
     <div
       className="body-projection"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      style={{ transform: mirror ? 'scaleX(-1)' : undefined }}
+      onPointerDown={interactive ? onPointerDown : undefined}
+      onPointerMove={interactive ? onPointerMove : undefined}
+      onPointerUp={interactive ? onPointerUp : undefined}
+      onPointerCancel={interactive ? onPointerUp : undefined}
+      style={{
+        transform: mirror ? 'scaleX(-1)' : undefined,
+        cursor: interactive ? 'pointer' : 'default',
+        pointerEvents: interactive ? undefined : 'none',
+      }}
     >
       {/* Base silhouette fill — theme-coloured via CSS var */}
       {fill && (
@@ -163,7 +187,8 @@ export default function BodyProjection({ muscleOpacity, showGhost = true }: Prop
       {muscles.map(({ name, url }) => {
         const group = MUSCLE_TO_GROUP[name]
         const opacity = group ? (effectiveOpacity[group] ?? 0) : 0
-        const isGhost = loaded && opacity === 0 && showGhost
+        const isIgnored = group ? ignoredMuscles.includes(group) : false
+        const isGhost = loaded && opacity === 0 && showGhost && !isIgnored
         return (
           <div
             key={name}

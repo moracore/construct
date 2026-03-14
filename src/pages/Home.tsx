@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAllDayLogs, getAllWorkouts, getSettings } from '../db'
 import { WEEKDAY_LABELS, monthName } from '../utils/calendar'
-import type { DayLog, HomePanelWidget } from '../types'
+import type { DayLog, HomePanelWidget, HomeLayout, MuscleGroup } from '../types'
 import { DEFAULT_HOME_SLOTS } from '../types'
 import BodyProjection from '../components/BodyProjection'
 import { useMuscleFatigue, type FatigueResult } from '../hooks/useMuscleFatigue'
@@ -27,6 +27,7 @@ const BarChartIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 const WIDGET_META: Record<HomePanelWidget, { label: string; icon: React.ReactNode }> = {
   'muscle-mvps':             { label: 'Muscle MVPs',    icon: <TrophyIcon /> },
   'week-volume':             { label: 'Week Volume',     icon: <ActivityIcon /> },
+  'week-volume-pct':         { label: 'Week Volume',     icon: <ActivityIcon /> },
   'suggested-targets':       { label: 'Targets',         icon: <TargetIcon /> },
   'weekly-frequency':        { label: 'Frequency',       icon: <ClockIcon /> },
   'rest-day-counter':        { label: 'Rest Days',       icon: <ClockIcon /> },
@@ -85,11 +86,11 @@ function Sparkline({ values }: { values: number[] }) {
 interface WidgetBodyProps {
   widget: HomePanelWidget
   data: FatigueResult
-  showVolumePercent: boolean
   loaded: boolean
+  ignoredMuscles: MuscleGroup[]
 }
 
-function WidgetBody({ widget, data, showVolumePercent, loaded }: WidgetBodyProps) {
+function WidgetBody({ widget, data, loaded, ignoredMuscles }: WidgetBodyProps) {
   if (!loaded) return <span className="metric-large-value">—</span>
 
   switch (widget) {
@@ -100,17 +101,20 @@ function WidgetBody({ widget, data, showVolumePercent, loaded }: WidgetBodyProps
 
     case 'week-volume':
       return data.weekVolume > 0
+        ? <div className="metric-large-value">{Math.round(data.weekVolume).toLocaleString()}<span className="metric-large-unit">kg</span></div>
+        : <span className="metric-large-value">—</span>
+
+    case 'week-volume-pct':
+      return data.weekVolume > 0
         ? (
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <div className="metric-large-value">
               {Math.round(data.weekVolume).toLocaleString()}
               <span className="metric-large-unit">kg</span>
             </div>
-            {showVolumePercent && (
-              <div className={`metric-card-delta ${data.weekVolumeDelta >= 0 ? 'delta-up' : 'delta-down'}`}>
-                {data.weekVolumeDelta >= 0 ? '+' : ''}{data.weekVolumeDelta.toFixed(0)}%
-              </div>
-            )}
+            <div className={`metric-card-delta ${data.weekVolumeDelta >= 0 ? 'delta-up' : 'delta-down'}`}>
+              {data.weekVolumeDelta >= 0 ? '+' : ''}{data.weekVolumeDelta.toFixed(0)}%
+            </div>
           </div>
         )
         : <span className="metric-large-value">—</span>
@@ -118,7 +122,10 @@ function WidgetBody({ widget, data, showVolumePercent, loaded }: WidgetBodyProps
     case 'suggested-targets':
       return (
         <div className="metric-pill-list">
-          {data.suggestedTargets.slice(0, 6).map(mg => <span key={mg} className="metric-pill pill-target">{mg}</span>)}
+          {data.suggestedTargets
+            .filter(mg => !ignoredMuscles.includes(mg))
+            .slice(0, 6)
+            .map(mg => <span key={mg} className="metric-pill pill-target">{mg}</span>)}
         </div>
       )
 
@@ -213,11 +220,11 @@ function WidgetBody({ widget, data, showVolumePercent, loaded }: WidgetBodyProps
 
 // ── Widget card slot ──────────────────────────────────────────────────────────
 
-function WidgetSlot({ widget, data, showVolumePercent, loaded }: {
+function WidgetSlot({ widget, data, loaded, ignoredMuscles }: {
   widget: HomePanelWidget
   data: FatigueResult
-  showVolumePercent: boolean
   loaded: boolean
+  ignoredMuscles: MuscleGroup[]
 }) {
   const { label, icon } = WIDGET_META[widget]
   return (
@@ -227,7 +234,7 @@ function WidgetSlot({ widget, data, showVolumePercent, loaded }: {
         <div className="metric-card-icon">{icon}</div>
       </div>
       <div className="metric-card-body">
-        <WidgetBody widget={widget} data={data} showVolumePercent={showVolumePercent} loaded={loaded} />
+        <WidgetBody widget={widget} data={data} loaded={loaded} ignoredMuscles={ignoredMuscles} />
       </div>
     </div>
   )
@@ -304,17 +311,46 @@ export default function Home() {
   const fatigue = useMuscleFatigue()
   const loaded  = fatigue.opacities !== null
 
-  const [showGhost,         setShowGhost]         = useState(true)
-  const [showVolumePercent, setShowVolumePercent] = useState(true)
-  const [homePanel,         setHomePanel]         = useState<'widgets' | 'calendar-only'>('widgets')
-  const [panelSlots,        setPanelSlots]        = useState<[HomePanelWidget, HomePanelWidget, HomePanelWidget]>(DEFAULT_HOME_SLOTS)
+  const [showGhost,      setShowGhost]      = useState(true)
+  const [homeLayout,     setHomeLayout]     = useState<HomeLayout>('body-full')
+  const [panelSlots,     setPanelSlots]     = useState<[HomePanelWidget, HomePanelWidget, HomePanelWidget]>(DEFAULT_HOME_SLOTS)
+  const [ignoredMuscles, setIgnoredMuscles] = useState<MuscleGroup[]>([])
+  const [bodyScale,      setBodyScale]      = useState(1)
+  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null)
+
+  function getPinchDist(e: React.TouchEvent) {
+    const dx = e.touches[1].clientX - e.touches[0].clientX
+    const dy = e.touches[1].clientY - e.touches[0].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  function onPinchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2)
+      pinchRef.current = { startDist: getPinchDist(e), startScale: bodyScale }
+  }
+
+  function onPinchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const ratio = getPinchDist(e) / pinchRef.current.startDist
+      setBodyScale(Math.min(1, Math.max(0.5, pinchRef.current.startScale * ratio)))
+    }
+  }
+
+  function onPinchEnd() { pinchRef.current = null }
+
+  function onBodyWheel(e: React.WheelEvent) {
+    setBodyScale(prev => Math.min(1, Math.max(0.5, prev - e.deltaY * 0.0008)))
+  }
 
   useEffect(() => {
     getSettings().then((s) => {
       setShowGhost(s.showGhostMuscles !== false)
-      setShowVolumePercent(s.showVolumePercent !== false)
-      setHomePanel(s.homePanel ?? 'widgets')
+      const raw = s.homeLayout ?? (s as any).homePanel
+      const layout: HomeLayout =
+        raw === 'body-full' || raw === 'body-only' || raw === 'calendar-only' ? raw : 'body-full'
+      setHomeLayout(layout)
       setPanelSlots(s.homePanelSlots ?? DEFAULT_HOME_SLOTS)
+      setIgnoredMuscles(s.ignoredMuscles ?? [])
     })
   }, [])
 
@@ -338,42 +374,58 @@ export default function Home() {
 
   const weeks = buildWeekRows(26, 12)
   const currentWeekIdx = 26
-  const calendarOnly = homePanel === 'calendar-only'
+
+  const showCalendar = homeLayout !== 'body-only'
+  const showBottom   = homeLayout !== 'calendar-only'
+  const slotCount    = homeLayout === 'body-full' ? 3 : 0
+
+  // Header block — always visible so settings are always reachable
+  const header = (
+    <div className="home-header">
+      <div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Construct</div>
+        {loaded && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            {fatigue.weeklyFrequency.toFixed(1)}× / week · last 3 weeks
+          </div>
+        )}
+      </div>
+      <button
+        className="btn btn-ghost btn-icon"
+        onClick={() => navigate('/settings')}
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <SettingsIcon />
+      </button>
+    </div>
+  )
 
   return (
     <div className="home-wrap">
 
-      {/* ── Top section: calendar ───────────────────────────────────── */}
-      <div className="home-top" style={calendarOnly ? { height: 'calc(100dvh - var(--nav-height))' } : undefined}>
-        {/* Header */}
-        <div className="home-header">
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Construct</div>
-            {loaded && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                {fatigue.weeklyFrequency.toFixed(1)}× / week · last 3 weeks
-              </div>
-            )}
-          </div>
-          <button
-            className="btn btn-ghost btn-icon"
-            onClick={() => navigate('/settings')}
-            style={{ color: 'var(--text-muted)' }}
+      {/* ── Top section: calendar (hidden in body-only, but header always shown) */}
+      {showCalendar
+        ? (
+          <div
+            className="home-top"
+            style={
+            homeLayout === 'calendar-only' ? { height: 'calc(100dvh - var(--nav-height))' }
+            : homeLayout === 'body-full'   ? { height: 'calc(100dvh * 6 / 9)' }
+            : undefined
+          }
           >
-            <SettingsIcon />
-          </button>
-        </div>
+            {header}
 
-        {/* Weekday labels */}
-        <div className="home-weekdays">
-          {WEEKDAY_LABELS.map((d) => (
-            <div key={d} className="home-weekday-label">{d}</div>
-          ))}
-        </div>
+            {/* Weekday labels */}
+            <div className="home-weekdays">
+              {WEEKDAY_LABELS.map((d) => (
+                <div key={d} className="home-weekday-label">{d}</div>
+              ))}
+            </div>
 
-        {/* Scrollable calendar */}
-        <div className="home-cal-scroll">
-          {weeks.map((week, wi) => {
+            {/* Scrollable calendar */}
+            <div className="home-cal-scroll">
+              {weeks.map((week, wi) => {
             const isCurrentWeek = wi === currentWeekIdx
             const allFuture = week.days.every((d) => d.isFuture)
 
@@ -423,23 +475,48 @@ export default function Home() {
           })}
         </div>
       </div>
+        )
+        : (
+          /* Body-only: header + pinch-scalable body */
+          <>
+            {header}
+            <div
+              style={{ flex: 1, minHeight: 0, paddingBottom: 'var(--nav-height)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+              onTouchStart={onPinchStart}
+              onTouchMove={onPinchMove}
+              onTouchEnd={onPinchEnd}
+              onTouchCancel={onPinchEnd}
+              onWheel={onBodyWheel}
+            >
+              <div style={{ width: '100%', height: '100%', transform: `scale(${bodyScale})`, transformOrigin: 'center center' }}>
+                <BodyProjection muscleOpacity={fatigue.opacities} showGhost={showGhost} ignoredMuscles={ignoredMuscles} />
+              </div>
+            </div>
+          </>
+        )
+      }
 
       {/* ── Bottom section: widgets + body projection ──────────────── */}
-      {!calendarOnly && (
-        <div className="home-bottom">
-          <div className="home-metrics">
-            {panelSlots.map((widget, idx) => (
-              <WidgetSlot
-                key={idx}
-                widget={widget}
-                data={fatigue}
-                showVolumePercent={showVolumePercent}
-                loaded={loaded}
-              />
-            ))}
-          </div>
+      {showBottom && homeLayout !== 'body-only' && (
+        <div
+          className="home-bottom"
+          style={homeLayout === 'body-full' ? { height: 'calc(100dvh * 3 / 9)' } : undefined}
+        >
+          {slotCount > 0 && (
+            <div className="home-metrics">
+              {panelSlots.map((widget, idx) => (
+                <WidgetSlot
+                  key={idx}
+                  widget={widget}
+                  data={fatigue}
+                  loaded={loaded}
+                  ignoredMuscles={ignoredMuscles}
+                />
+              ))}
+            </div>
+          )}
           <div className="home-body">
-            <BodyProjection muscleOpacity={fatigue.opacities} showGhost={showGhost} />
+            <BodyProjection muscleOpacity={fatigue.opacities} showGhost={showGhost} ignoredMuscles={ignoredMuscles} />
           </div>
         </div>
       )}

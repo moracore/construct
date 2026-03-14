@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useActiveWorkout, type SessionExercise, type SessionSet } from '../../context/ActiveWorkoutContext'
-import { getAllDayLogs, saveDayLog } from '../../db'
-import type { DayLog, LoggedExercise, ExerciseSet } from '../../types'
+import { getAllDayLogs, getAllExercises, saveDayLog } from '../../db'
+import type { DayLog, LoggedExercise, ExerciseSet, MuscleGroup } from '../../types'
+import BodyProjection from '../../components/BodyProjection'
 
 function generateId() {
   return `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
@@ -140,13 +141,32 @@ export default function CompletionSummary() {
   const [prs, setPRs] = useState<PR[]>([])
   const [saving, setSaving] = useState(false)
   const [markdown, setMarkdown] = useState('')
+  const [sessionMuscleOpacity, setSessionMuscleOpacity] = useState<Partial<Record<MuscleGroup, number>>>({})
 
   useEffect(() => {
     if (!session) { navigate('/log', { replace: true }); return }
     const date = todayISO()
-    const md = sessionToMarkdown(session, date)
-    setMarkdown(md)
-    getAllDayLogs().then((logs) => setPRs(detectPRs(session.exercises, logs)))
+    setMarkdown(sessionToMarkdown(session, date))
+
+    Promise.all([getAllDayLogs(), getAllExercises()]).then(([logs, exercises]) => {
+      setPRs(detectPRs(session.exercises, logs))
+
+      // Build muscle opacity map: primary = 1.0, secondary-only = 0.25
+      const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
+      const primary = new Set<MuscleGroup>()
+      const secondary = new Set<MuscleGroup>()
+      for (const ex of session.exercises) {
+        if (ex.sets.length === 0) continue
+        const def = exerciseMap.get(ex.exerciseId)
+        if (!def) continue
+        for (const mg of def.primaryMuscleGroups)   primary.add(mg)
+        for (const mg of def.secondaryMuscleGroups) secondary.add(mg)
+      }
+      const opacities: Partial<Record<MuscleGroup, number>> = {}
+      for (const mg of primary)   opacities[mg] = 1.0
+      for (const mg of secondary) if (!primary.has(mg)) opacities[mg] = 0.25
+      setSessionMuscleOpacity(opacities)
+    })
   }, [session, navigate])
 
   if (!session) return null
@@ -209,6 +229,31 @@ export default function CompletionSummary() {
           ))}
         </div>
 
+        {/* Actions + body preview */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'stretch' }}>
+          {/* Left: action buttons stacked */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => navigate('/log/active')}>
+              Continue
+            </button>
+            <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save & Finish'}
+            </button>
+            <button className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center', color: 'var(--danger)' }} onClick={handleDiscard}>
+              Discard
+            </button>
+          </div>
+
+          {/* Right: draggable body preview */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden', minHeight: 160 }}>
+            <BodyProjection
+              muscleOpacity={sessionMuscleOpacity}
+              showGhost={false}
+              interactive
+            />
+          </div>
+        </div>
+
         {/* PRs */}
         {prs.length > 0 && (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -247,13 +292,6 @@ export default function CompletionSummary() {
           />
           <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>You can edit before saving</p>
         </div>
-
-        <button className="btn btn-primary btn-lg btn-full" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save & Finish'}
-        </button>
-        <button className="btn btn-ghost btn-full" onClick={handleDiscard} style={{ color: 'var(--danger)' }}>
-          Discard Workout
-        </button>
       </div>
     </div>
   )
