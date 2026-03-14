@@ -9,14 +9,11 @@ const b2Raw = import.meta.glob('../../b2/*.png', { query: '?url', import: 'defau
 const b3Raw = import.meta.glob('../../b3/*.png', { query: '?url', import: 'default', eager: true }) as Record<string, string>
 
 // ── Muscle name parsing ───────────────────────────────────────────────────────
-// Asset keys look like '../../b0/b0-chest.png' → muscle name = 'chest'
-// Double-dash names like 'b0--fill.png' → '-fill' (starts with '-', excluded)
 function parseMuscle(key: string): string {
   const file = key.split('/').pop()!
   return file.replace(/^b\d+/, '').replace(/^-/, '').replace(/\.png$/, '')
 }
 
-// Generic aggregate groupings to exclude per spec
 const EXCLUDED = new Set(['arms', 'back', 'mid', 'upper', 'legs'])
 
 interface MuscleEntry { name: string; url: string }
@@ -24,7 +21,6 @@ interface MuscleEntry { name: string; url: string }
 function buildMuscleList(assets: Record<string, string>): MuscleEntry[] {
   return Object.entries(assets).flatMap(([key, url]) => {
     const name = parseMuscle(key)
-    // Skip base images (--fill, --full, --outline, --fulloutline) and excluded aggregates
     if (name.startsWith('-') || name === '' || EXCLUDED.has(name)) return []
     return [{ name, url }]
   })
@@ -67,7 +63,6 @@ const MUSCLE_TO_GROUP: Partial<Record<string, MuscleGroup>> = {
 }
 
 // ── Angle definitions ─────────────────────────────────────────────────────────
-// 6 steps: 0°, 60°, 120°, 180°, 240° (mirror of 120°), 300° (mirror of 60°)
 type AngleDef = { assets: Record<string, string>; mirror: boolean; label: string }
 
 const ANGLE_DEFS: AngleDef[] = [
@@ -79,33 +74,29 @@ const ANGLE_DEFS: AngleDef[] = [
   { assets: b1Raw, mirror: true,  label: '300°' },
 ]
 
-// ── Stage 3: L/R interception ─────────────────────────────────────────────────
-// When scaleX(-1) is active the left side of the avatar renders on the right.
-// If/when separate L/R MuscleGroup entries are added to the data model,
-// insert the swap logic here so the correct side highlights.
 function interceptMirror(
   opacities: Partial<Record<MuscleGroup, number>>,
   _isMirrored: boolean,
 ): Partial<Record<MuscleGroup, number>> {
-  // No separate L/R groups in current schema → identity pass-through.
-  // Replace with swap logic when L/R muscle groups are introduced.
   return opacities
 }
 
-// px of horizontal drag to advance one rotation step
+// Native PNG dimensions — the body layers render at exactly this size so the
+// mask PNG is never upscaled. The inner div is then scaled via CSS transform,
+// which uses the GPU compositor path where image-rendering: pixelated is
+// reliably honoured on both Chrome and Android WebView.
+const PNG_W = 86
+const PNG_H = 145
+
 const DRAG_STEP_PX = 48
 
 // ── Component ─────────────────────────────────────────────────────────────────
 interface Props {
-  // null while data is still loading — prevents untrained ghost flicker on mount
   muscleOpacity: Partial<Record<MuscleGroup, number>> | null
   showGhost?: boolean
   ignoredMuscles?: MuscleGroup[]
-  /** Automatically cycle through angles — for decorative non-interactive use */
   autoSpin?: boolean
-  /** Interval in ms between angle steps when autoSpin is true (default 650) */
   spinInterval?: number
-  /** When false, disables drag interaction (default true) */
   interactive?: boolean
 }
 
@@ -118,7 +109,27 @@ export default function BodyProjection({
   interactive = true,
 }: Props) {
   const [angleIdx, setAngleIdx] = useState(0)
+  const [scale, setScale] = useState(1)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const drag = useRef({ active: false, startX: 0, startAngle: 0 })
+
+  // Measure the container and compute the scale so the native-size inner div
+  // fills it — mask-image is rendered at 1:1 with the PNG, then the GPU
+  // compositor scales it up with pixelated (nearest-neighbour) interpolation.
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const update = () => {
+      const { width, height } = wrapper.getBoundingClientRect()
+      if (width > 0 && height > 0) {
+        setScale(Math.min(width / PNG_W, height / PNG_H))
+      }
+    }
+    const ro = new ResizeObserver(update)
+    ro.observe(wrapper)
+    update()
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!autoSpin) return
@@ -149,58 +160,68 @@ export default function BodyProjection({
     drag.current.active = false
   }
 
+  // Mirror is folded into the horizontal scale so we don't need a separate
+  // scaleX(-1) wrapper that would create an extra compositing layer.
+  const sx = mirror ? -scale : scale
+
   return (
     <div
+      ref={wrapperRef}
       className="body-projection"
       onPointerDown={interactive ? onPointerDown : undefined}
       onPointerMove={interactive ? onPointerMove : undefined}
       onPointerUp={interactive ? onPointerUp : undefined}
       onPointerCancel={interactive ? onPointerUp : undefined}
       style={{
-        transform: mirror ? 'scaleX(-1)' : undefined,
         cursor: interactive ? 'pointer' : 'default',
         pointerEvents: interactive ? undefined : 'none',
       }}
     >
-      {/* Base silhouette fill — theme-coloured via CSS var */}
-      {fill && (
-        <div
-          className="body-layer body-fill"
-          style={{
-            maskImage: `url(${fill})`,
-            WebkitMaskImage: `url(${fill})`,
-          }}
-        />
-      )}
-      {/* Outline layer */}
-      {outline && (
-        <div
-          className="body-layer body-outline"
-          style={{
-            maskImage: `url(${outline})`,
-            WebkitMaskImage: `url(${outline})`,
-          }}
-        />
-      )}
-      {/* Muscle highlight layers — opacity driven by 14-day volume.
-          Untrained muscles (opacity 0, data loaded) pulse in the complement hue. */}
-      {muscles.map(({ name, url }) => {
-        const group = MUSCLE_TO_GROUP[name]
-        const opacity = group ? (effectiveOpacity[group] ?? 0) : 0
-        const isIgnored = group ? ignoredMuscles.includes(group) : false
-        const isGhost = loaded && opacity === 0 && showGhost && !isIgnored
-        return (
+      {/* Inner div rendered at native PNG size; scaled via GPU transform.
+          image-rendering: pixelated tells the compositor to use nearest-
+          neighbour when scaling this compositing layer — works reliably in
+          both Chrome and Android WebView, unlike mask-image upscaling. */}
+      <div
+        style={{
+          position: 'relative',
+          width: PNG_W,
+          height: PNG_H,
+          flexShrink: 0,
+          transformOrigin: 'center center',
+          transform: `scaleX(${sx}) scaleY(${scale})`,
+          imageRendering: 'pixelated',
+        }}
+      >
+        {fill && (
           <div
-            key={name}
-            className={`body-layer body-muscle${isGhost ? ' body-muscle-ghost' : ''}`}
-            style={{
-              maskImage: `url(${url})`,
-              WebkitMaskImage: `url(${url})`,
-              opacity: isGhost ? undefined : opacity,
-            }}
+            className="body-layer body-fill"
+            style={{ maskImage: `url(${fill})`, WebkitMaskImage: `url(${fill})` }}
           />
-        )
-      })}
+        )}
+        {outline && (
+          <div
+            className="body-layer body-outline"
+            style={{ maskImage: `url(${outline})`, WebkitMaskImage: `url(${outline})` }}
+          />
+        )}
+        {muscles.map(({ name, url }) => {
+          const group = MUSCLE_TO_GROUP[name]
+          const opacity = group ? (effectiveOpacity[group] ?? 0) : 0
+          const isIgnored = group ? ignoredMuscles.includes(group) : false
+          const isGhost = loaded && opacity === 0 && showGhost && !isIgnored
+          return (
+            <div
+              key={name}
+              className={`body-layer body-muscle${isGhost ? ' body-muscle-ghost' : ''}`}
+              style={{
+                maskImage: `url(${url})`,
+                WebkitMaskImage: `url(${url})`,
+                opacity: isGhost ? undefined : opacity,
+              }}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }

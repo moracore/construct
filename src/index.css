@@ -1064,32 +1064,33 @@ input::placeholder {
 }
 
 /* ── Body projection ───────────────────────────────────────────────────── */
+/* Outer wrapper — fills its container, centres the native-size inner div */
 .body-projection {
   position: relative;
   width: 100%;
   height: 100%;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   user-select: none;
   overflow: hidden;
   touch-action: none;
 }
 
-/* All mask layers share the same sizing/positioning.
-   translateY(-10%) discards the top 10% of each image so the
-   body silhouette sits more centred vertically in the container. */
+/* All mask layers sit inside the native-size (86×145 px) inner div.
+   mask-size: 100% 100% maps the PNG 1:1 — no upscaling, no blur.
+   Scaling to fill the screen is handled by the parent transform:scaleX/Y
+   with image-rendering:pixelated on the GPU compositor path. */
 .body-layer {
   position: absolute;
   inset: 0;
-  mask-size: contain;
+  mask-size: 100% 100%;
   mask-repeat: no-repeat;
   mask-position: center;
-  -webkit-mask-size: contain;
+  -webkit-mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
-  transform: translateY(-5%) translateZ(0);
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  will-change: mask-image;
+  transform: translateY(-5%);
 }
 
 /* Body silhouette fill — muted theme colour */
