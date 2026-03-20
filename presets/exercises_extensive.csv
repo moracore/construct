@@ -1,0 +1,82 @@
+workout,exercise,main muscle(s),secondary muscle(s),bodyweight?,BW + extra weight,Assisted? BW - extra weight,Timed?,LR?
+"Push, Upper, Compound",Bench Press (Dumbbells),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Bench Press (Barbell),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Bench Press (Machine),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Incline Bench Press (Dumbbells),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Incline Bench Press (Barbell),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Incline Bench Press (Machine),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Dips,Chest,"Triceps, Front Delts",TRUE
+"Push, Upper, Compound",Dips (Weighted),Chest,"Triceps, Front Delts",,TRUE
+"Push, Upper, Compound",Dips (Machine),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Shoulder Press (Dumbbells),Front Delts,"Triceps, Side Delts"
+"Push, Upper, Compound",Shoulder Press (Barbell),Front Delts,"Triceps, Side Delts"
+"Push, Upper, Compound",Shoulder Press (Machine),Front Delts,"Triceps, Side Delts"
+"Push, Upper",Chest Fly (Dumbbells),Chest,Front Delts
+"Push, Upper",Chest Fly (Machine),Chest,Front Delts
+"Push, Upper",Chest Fly (Cable),Chest,Front Delts
+"Push, Upper",Crossovers (Cable),Chest,"Triceps, Front Delts"
+"Push, Upper, Compound",Push-ups,Chest,"Triceps, Front Delts",TRUE
+"Push, Upper, Compound",Push-ups (Weighted),Chest,"Triceps, Front Delts",,TRUE
+"Push, Upper",Lateral Raises (L/R Cable),Side Delts,,,,,,TRUE
+"Push, Upper",Lateral Raises (Cable),Side Delts
+"Push, Upper",Lateral Raises (Dumbbells),Side Delts
+"Push, Upper",Lateral Raises (Machine),Side Delts
+"Push, Upper",Pushdowns (Cable),Triceps,Front Delts
+"Push, Upper",Overhead Tricep Extensions (Cable),Triceps,Front Delts
+"Push, Upper",Overhead Tricep Extensions (Dumbbells L/R),Triceps,Front Delts,,,,,TRUE
+"Push, Upper",Overhead Tricep Extensions (Dumbbell),Triceps,Front Delts
+"Pull, Upper, Compound",Rows (Close-grip Cable),Lats,"Traps, Biceps, Rear Delts"
+"Pull, Upper, Compound",Rows (Wide-grip Cable),Traps,"Lats, Biceps, Rear Delts"
+"Pull, Upper, Compound",Rows (Machine),"Lats, Traps","Biceps, Rear Delts"
+"Pull, Upper, Compound",Rows (Barbell),"Lats, Traps","Biceps, Rear Delts"
+"Pull, Upper, Compound",Pulldowns (Close-grip Cable),Lats,"Biceps, Rear Delts"
+"Pull, Upper, Compound",Pulldowns (Close-grip Machine),Lats,"Biceps, Rear Delts"
+"Pull, Upper, Compound",Pull-ups (Wide-grip),Lats,"Biceps, Traps, Rear Delts",TRUE
+"Pull, Upper, Compound",Pull-ups (Underhand Close-grip),"Lats, Biceps","Traps, Rear Delts",TRUE
+"Pull, Upper, Compound",Pull-ups (Close-grip),Lats,"Biceps, Traps, Rear Delts",TRUE
+"Pull, Upper, Compound",Pull-ups (Assisted),Lats,"Biceps, Traps, Rear Delts",,,TRUE
+"Pull, Upper, Compound",Pull-ups (Wide-grip Weighted),Lats,"Biceps, Traps, Rear Delts",,TRUE
+"Pull, Upper, Compound",Pull-ups (Close-grip Weighted),Lats,"Biceps, Traps, Rear Delts",,TRUE
+"Pull, Upper",Curls (Dumbbell),Biceps
+"Pull, Upper",Curls (Dumbbell L/R),Biceps,,,,,,TRUE
+"Pull, Upper",Curls (Preacher Dumbbell L/R),Biceps,,,,,,TRUE
+"Pull, Upper",Curls (Preacher Barbell),Biceps
+"Pull, Upper",Curls (Barbell),Biceps
+"Pull, Upper",Curls (Machine),Biceps
+"Pull, Upper",Curls (Machine L/R),Biceps,,,,,,TRUE
+"Pull, Upper",Curls (Cable),Biceps
+"Pull, Upper",Curls (Cable L/R),Biceps,,,,,,TRUE
+"Pull, Upper",Wrist Curls (Barbell),Forearms
+"Pull, Upper",Reverse Wrist Curls (Barbell),Forearms
+"Pull, Upper, Compound",Farmers Walk,Forearms,"Traps, Core",,TRUE,,TRUE
+"Pull, Upper",Back Extensions,Lower Back,"Glutes, Hamstrings",TRUE
+"Pull, Upper, Compound",Good Mornings (Barbell),Lower Back,"Hamstrings, Glutes"
+"Pull, Upper, Compound",Face Pulls (Cable),Rear Delts,Traps
+"Pull, Upper",Reverse Pec Deck,Rear Delts,
+"Legs, Lower, Compound",Squats (Barbell),"Quads, Glutes","Hamstrings, Core"
+"Legs, Lower, Compound",Squats (Machine),"Quads, Glutes",Hamstrings,,,,,
+"Legs, Lower, Compound",Leg Press,"Quads, Glutes",Hamstrings
+"Legs, Lower, Compound",Lunges (Dumbbells L/R),"Quads, Glutes",Hamstrings,,,,,TRUE
+"Legs, Lower, Compound",Lunges (Barbell),"Quads, Glutes",Hamstrings
+"Legs, Lower, Compound",Bulgarian Split Squats (Dumbbells L/R),"Quads, Glutes",Hamstrings,,,,,TRUE
+"Legs, Lower, Compound",Romanian Deadlifts (Barbell),"Hamstrings, Glutes","Lower Back, Core"
+"Legs, Lower, Compound",Romanian Deadlifts (Dumbbells),"Hamstrings, Glutes","Lower Back, Core"
+"Legs, Lower",Leg Extensions (Machine),Quads
+"Legs, Lower",Leg Curls (Machine),Hamstrings
+"Legs, Lower",Calf Raises (Standing Machine),Calves,,,,,,
+"Legs, Lower",Calf Raises (Seated Machine),Calves,
+"Legs, Lower",Calf Raises (Dumbbell L/R),Calves,,,,,,TRUE
+"Legs, Lower, Compound",Hip Thrusts (Barbell),Glutes,Hamstrings,,,,,
+"Legs, Lower, Compound",Hip Thrusts (Machine),Glutes,Hamstrings
+"Legs, Lower",Glute Kickbacks (Cable L/R),Glutes,,,,,,TRUE
+"Legs, Lower",Abductors (Machine),Glutes,,
+"Legs, Lower",Adductors (Machine),Adductors
+Core,Crunches,Core,,TRUE
+Core,Crunches (Machine),Core,,
+Core,Cable Crunches,Core,,
+Core,Leg Raises (Hanging),Core,Hip Flexors,TRUE,,,
+Core,Leg Raises (Lying),Core,Hip Flexors,TRUE,,,
+"Core, Compound",Planks,Core,Front Delts,TRUE,,,TRUE,
+"Core, Compound",Planks (Weighted),Core,Front Delts,,TRUE,,TRUE
+Core,Russian Twists (Weighted L/R),Obliques,Core,,,,,TRUE
+"Core, Compound",Ab Wheel Rollouts,Core,,TRUE

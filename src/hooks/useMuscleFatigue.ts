@@ -35,6 +35,7 @@ export interface FatigueResult {
   currentStreak:         number          // consecutive Mon–Sun weeks with ≥1 session
   lastSession:           LastSessionInfo | null
   topExercises:          TopExerciseEntry[]  // top 3 by volume this week
+  topAvgWeightExercise:  TopExerciseEntry | null // highest avg weight/set this week (non-BW)
   muscleVolumeBreakdown: MuscleVolumeEntry[] // top 4, decayed 14-day window
   volumeTrend:           number[]        // 8 weekly totals, index 0 = 7 weeks ago, index 7 = current week
 }
@@ -50,6 +51,7 @@ const DEFAULT_RESULT: FatigueResult = {
   currentStreak:         0,
   lastSession:           null,
   topExercises:          [],
+  topAvgWeightExercise:  null,
   muscleVolumeBreakdown: [],
   volumeTrend:           [],
 }
@@ -317,6 +319,30 @@ export function useMuscleFatigue(): FatigueResult {
         .sort((a, b) => b.volume - a.volume)
         .slice(0, 3)
 
+      // ── Top avg-weight exercise this week (non-bodyweight only) ───────────
+      const avgWeightMap = new Map<string, { name: string; totalWeight: number; sets: number }>()
+      for (let d = 0; d < 7; d++) {
+        const log = logMap[toISO(subtractDays(today, d))]
+        if (!log) continue
+        for (const logged of log.exercises) {
+          const ex = exerciseMap.get(logged.exerciseId)
+          if (!ex || ex.isBodyweight) continue
+          for (const set of logged.sets) {
+            const w = set.weight ?? set.leftWeight ?? set.rightWeight
+            if (w == null) continue
+            const entry = avgWeightMap.get(logged.exerciseId) ?? { name: ex.name, totalWeight: 0, sets: 0 }
+            entry.totalWeight += w
+            entry.sets++
+            avgWeightMap.set(logged.exerciseId, entry)
+          }
+        }
+      }
+      const topAvgWeightExercise: TopExerciseEntry | null = avgWeightMap.size > 0
+        ? [...avgWeightMap.values()]
+            .map(e => ({ name: e.name, volume: Math.round(e.totalWeight / e.sets) }))
+            .sort((a, b) => b.volume - a.volume)[0]
+        : null
+
       // ── Muscle volume breakdown (decayed 14-day, top 4) ───────────────────
       const muscleEntries = (Object.entries(currentRaw) as [MuscleGroup, number][])
         .filter(([, v]) => v > 0)
@@ -337,7 +363,7 @@ export function useMuscleFatigue(): FatigueResult {
       setResult({
         opacities, muscleMVPs, suggestedTargets, weekVolume, weekVolumeDelta,
         weeklyFrequency, restDays, currentStreak, lastSession, topExercises,
-        muscleVolumeBreakdown, volumeTrend,
+        topAvgWeightExercise, muscleVolumeBreakdown, volumeTrend,
       })
     }
 

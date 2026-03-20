@@ -70,7 +70,7 @@ function emptyPending(): PendingSet {
 function prefillFromLast(last: SessionSet, ex: SessionExercise): PendingSet {
   if (ex.isDoubleComponent) {
     return {
-      weight: last.weight?.toString() ?? last.leftWeight?.toString() ?? '', 
+      weight: last.weight?.toString() ?? last.leftWeight?.toString() ?? '',
       reps: '',
       leftWeight: '',
       leftReps: last.leftReps?.toString() ?? last.reps.toString(),
@@ -101,9 +101,12 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
       const lr = parseInt(v.leftReps) || 0
       const rr = parseInt(v.rightReps) || 0
       if (!lr && !rr) return
+      const w = v.weight ? parseFloat(v.weight) : undefined
       onLog({
         reps: Math.max(lr, rr),
-        weight: v.weight ? parseFloat(v.weight) : undefined,
+        weight: w,
+        leftWeight: w,
+        rightWeight: w,
         leftReps: lr || undefined,
         rightReps: rr || undefined,
         loggedAt: Date.now(),
@@ -154,11 +157,11 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
           {renderWeightCell(60)}
           <span style={{ width: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
-          <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
-          {inp('reps', 'leftReps', 44)}
-          <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
           {inp('reps', 'rightReps', 44)}
+          <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+          <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
+          {inp('reps', 'leftReps', 44)}
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -203,11 +206,11 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, 
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
             {cell(bwWeightLabel(w), 60)}
             {cell('·', 16, true)}
-            <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
-            {cell(formatDuration(set.leftDuration ?? 0), 54)}
-            <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
             <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
             {cell(formatDuration(set.rightDuration ?? 0), 54)}
+            <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+            <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
+            {cell(formatDuration(set.leftDuration ?? 0), 54)}
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -227,11 +230,11 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
           {cell(bwWeightLabel(w), 60)}
           {cell('×', 16, true)}
-          <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
-          {cell(set.leftReps ?? set.reps, 44)}
-          <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
           {cell(set.rightReps ?? set.reps, 44)}
+          <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+          <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
+          {cell(set.leftReps ?? set.reps, 44)}
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
@@ -285,7 +288,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
 
   const typeLabel = [
     ex.isTimed ? 'Timed' : bwTypeLabel(),
-    ex.isDoubleComponent ? 'L/R' : null,
+    ex.isDoubleComponent ? 'R/L' : null,
     ex.defaultRestSeconds ? `${ex.defaultRestSeconds}s rest` : '90s rest',
   ].filter(Boolean).join(' · ')
 

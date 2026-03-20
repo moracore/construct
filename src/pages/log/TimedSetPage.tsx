@@ -280,8 +280,8 @@ export default function TimedSetPage() {
         {/* Timer(s) */}
         {isDoubleComponent ? (
           <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', justifyContent: 'center' }}>
-            <CircleTimer timer={leftTimer.state} label="L" targetSeconds={targetSeconds} onTap={handleLeftTap} size={160} />
             <CircleTimer timer={rightTimer.state} label="R" targetSeconds={targetSeconds} onTap={handleRightTap} size={160} />
+            <CircleTimer timer={leftTimer.state} label="L" targetSeconds={targetSeconds} onTap={handleLeftTap} size={160} />
           </div>
         ) : (
           <CircleTimer timer={timer.state} targetSeconds={targetSeconds} onTap={handleSingleTap} size={240} />
@@ -292,9 +292,9 @@ export default function TimedSetPage() {
           lrCanRecord && (
             <div className="card" style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'center' }}>
               <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                L: <strong style={{ color: 'var(--text-primary)' }}>{formatLabel(leftTimer.state.elapsed)}</strong>
-                {'  ·  '}
                 R: <strong style={{ color: 'var(--text-primary)' }}>{formatLabel(rightTimer.state.elapsed)}</strong>
+                {'  ·  '}
+                L: <strong style={{ color: 'var(--text-primary)' }}>{formatLabel(leftTimer.state.elapsed)}</strong>
               </div>
               <button className="btn btn-primary btn-full" onClick={handleRecordLR}>Record Set</button>
             </div>

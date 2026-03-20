@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAllDayLogs, getAllWorkouts, getSettings } from '../db'
 import { WEEKDAY_LABELS, monthName } from '../utils/calendar'
 import type { DayLog, HomePanelWidget, HomeLayout, MuscleGroup } from '../types'
-import { DEFAULT_HOME_SLOTS } from '../types'
+import { DEFAULT_HOME_SLOTS, VALID_PANEL_WIDGETS } from '../types'
 import BodyProjection from '../components/BodyProjection'
 import { useMuscleFatigue, type FatigueResult } from '../hooks/useMuscleFatigue'
 
@@ -25,17 +25,15 @@ const BarChartIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 // ── Widget metadata ───────────────────────────────────────────────────────────
 
 const WIDGET_META: Record<HomePanelWidget, { label: string; icon: React.ReactNode }> = {
-  'muscle-mvps':             { label: 'Muscle MVPs',    icon: <TrophyIcon /> },
-  'week-volume':             { label: 'Week Volume',     icon: <ActivityIcon /> },
-  'week-volume-pct':         { label: 'Week Volume',     icon: <ActivityIcon /> },
-  'suggested-targets':       { label: 'Targets',         icon: <TargetIcon /> },
-  'weekly-frequency':        { label: 'Frequency',       icon: <ClockIcon /> },
-  'rest-day-counter':        { label: 'Rest Days',       icon: <ClockIcon /> },
-  'current-streak':          { label: 'Streak',          icon: <FlameIcon /> },
-  'last-session':            { label: 'Last Session',    icon: <ClockIcon /> },
-  'top-exercises':           { label: 'This Week',       icon: <BarChartIcon /> },
-  'muscle-volume-breakdown': { label: 'Volume Split',    icon: <BarChartIcon /> },
-  'volume-trend':            { label: '8-Week Trend',    icon: <ActivityIcon /> },
+  'week-volume':     { label: 'Week Volume',    icon: <ActivityIcon /> },
+  'week-volume-pct': { label: 'Week Volume',    icon: <ActivityIcon /> },
+  'suggested-target':{ label: 'Target',         icon: <TargetIcon /> },
+  'weekly-frequency':{ label: 'Frequency',      icon: <ClockIcon /> },
+  'rest-day-counter':{ label: 'Rest Days',      icon: <ClockIcon /> },
+  'current-streak':  { label: 'Streak',         icon: <FlameIcon /> },
+  'top-exercise':    { label: 'Top Exercise',   icon: <TrophyIcon /> },
+  'top-avg-weight':  { label: 'Heaviest Lift',  icon: <BarChartIcon /> },
+  'volume-trend':    { label: '8-Week Trend',   icon: <ActivityIcon /> },
 }
 
 // ── Helper: relative date ─────────────────────────────────────────────────────
@@ -94,11 +92,6 @@ function WidgetBody({ widget, data, loaded, ignoredMuscles }: WidgetBodyProps) {
   if (!loaded) return <span className="metric-large-value">—</span>
 
   switch (widget) {
-    case 'muscle-mvps':
-      return data.muscleMVPs.length > 0
-        ? <div className="metric-pill-list">{data.muscleMVPs.map(mg => <span key={mg} className="metric-pill pill-mvp">{mg}</span>)}</div>
-        : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>None this week</span>
-
     case 'week-volume':
       return data.weekVolume > 0
         ? <div className="metric-large-value">{Math.round(data.weekVolume).toLocaleString()}<span className="metric-large-unit">kg</span></div>
@@ -119,15 +112,12 @@ function WidgetBody({ widget, data, loaded, ignoredMuscles }: WidgetBodyProps) {
         )
         : <span className="metric-large-value">—</span>
 
-    case 'suggested-targets':
-      return (
-        <div className="metric-pill-list">
-          {data.suggestedTargets
-            .filter(mg => !ignoredMuscles.includes(mg))
-            .slice(0, 6)
-            .map(mg => <span key={mg} className="metric-pill pill-target">{mg}</span>)}
-        </div>
-      )
+    case 'suggested-target': {
+      const target = data.suggestedTargets.find(mg => !ignoredMuscles.includes(mg))
+      return target
+        ? <span className="metric-pill pill-target" style={{ fontSize: 13, padding: '4px 10px' }}>{target}</span>
+        : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>All muscles trained</span>
+    }
 
     case 'weekly-frequency':
       return (
@@ -164,47 +154,31 @@ function WidgetBody({ widget, data, loaded, ignoredMuscles }: WidgetBodyProps) {
         </div>
       )
 
-    case 'last-session':
-      if (!data.lastSession) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No sessions yet</span>
-      return (
-        <div className="widget-last-session">
-          <span className="widget-ls-name">{data.lastSession.workoutName || 'Session'}</span>
-          <span className="widget-ls-meta">
-            {relDate(data.lastSession.date)} · {data.lastSession.exerciseCount} exercises
-          </span>
-          <span className="widget-ls-vol">
-            {data.lastSession.totalVolume.toLocaleString()}<span style={{ fontSize: 9, marginLeft: 2, color: 'var(--text-muted)' }}>kg</span>
-          </span>
-        </div>
-      )
-
-    case 'top-exercises':
-      if (!data.topExercises.length) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No sessions this week</span>
+    case 'top-exercise': {
+      const top = data.topExercises[0]
+      if (!top) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No sessions this week</span>
       return (
         <div className="widget-top-ex">
-          {data.topExercises.map(ex => (
-            <div key={ex.name} className="widget-top-ex-row">
-              <span className="widget-top-ex-name">{ex.name}</span>
-              <span className="widget-top-ex-vol">{Math.round(ex.volume).toLocaleString()}</span>
-            </div>
-          ))}
+          <div className="widget-top-ex-row">
+            <span className="widget-top-ex-name">{top.name}</span>
+            <span className="widget-top-ex-vol">{Math.round(top.volume).toLocaleString()}<span style={{ fontSize: 9, marginLeft: 2, color: 'var(--text-muted)' }}>kg</span></span>
+          </div>
         </div>
       )
+    }
 
-    case 'muscle-volume-breakdown':
-      if (!data.muscleVolumeBreakdown.length) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No volume data</span>
+    case 'top-avg-weight': {
+      const ex = data.topAvgWeightExercise
+      if (!ex) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No sessions this week</span>
       return (
-        <div className="widget-muscle-bars">
-          {data.muscleVolumeBreakdown.map(({ muscle, fraction }) => (
-            <div key={muscle} className="widget-muscle-bar-row">
-              <span className="widget-muscle-bar-label">{muscle.split(' ')[0]}</span>
-              <div className="widget-muscle-bar-track">
-                <div className="widget-muscle-bar-fill" style={{ width: `${Math.round(fraction * 100)}%` }} />
-              </div>
-            </div>
-          ))}
+        <div className="widget-top-ex">
+          <div className="widget-top-ex-row">
+            <span className="widget-top-ex-name">{ex.name}</span>
+            <span className="widget-top-ex-vol">{ex.volume}<span style={{ fontSize: 9, marginLeft: 2, color: 'var(--text-muted)' }}>kg avg</span></span>
+          </div>
         </div>
       )
+    }
 
     case 'volume-trend':
       return (
@@ -215,6 +189,9 @@ function WidgetBody({ widget, data, loaded, ignoredMuscles }: WidgetBodyProps) {
           </span>
         </div>
       )
+
+    default:
+      return null
   }
 }
 
@@ -349,7 +326,8 @@ export default function Home() {
       const layout: HomeLayout =
         raw === 'body-full' || raw === 'body-only' || raw === 'calendar-only' ? raw : 'body-full'
       setHomeLayout(layout)
-      setPanelSlots(s.homePanelSlots ?? DEFAULT_HOME_SLOTS)
+      const rawSlots = s.homePanelSlots ?? DEFAULT_HOME_SLOTS
+      setPanelSlots(rawSlots.map(w => VALID_PANEL_WIDGETS.has(w) ? w : DEFAULT_HOME_SLOTS[0]) as [HomePanelWidget, HomePanelWidget, HomePanelWidget])
       setIgnoredMuscles(s.ignoredMuscles ?? [])
     })
   }, [])

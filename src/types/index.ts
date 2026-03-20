@@ -79,26 +79,29 @@ export interface DayLog {
 }
 
 export type HomePanelWidget =
-  | 'muscle-mvps'
   | 'week-volume'
   | 'week-volume-pct'
-  | 'suggested-targets'
+  | 'suggested-target'
   | 'weekly-frequency'
   | 'rest-day-counter'
   | 'current-streak'
-  | 'last-session'
-  | 'top-exercises'
-  | 'muscle-volume-breakdown'
+  | 'top-exercise'
+  | 'top-avg-weight'
   | 'volume-trend'
 
 /** Home screen layout mode */
 export type HomeLayout = 'body-full' | 'body-only' | 'calendar-only'
 
 export const DEFAULT_HOME_SLOTS: [HomePanelWidget, HomePanelWidget, HomePanelWidget] = [
-  'muscle-mvps',
+  'suggested-target',
   'week-volume',
-  'suggested-targets',
+  'current-streak',
 ]
+
+export const VALID_PANEL_WIDGETS = new Set<string>([
+  'week-volume', 'week-volume-pct', 'suggested-target', 'weekly-frequency',
+  'rest-day-counter', 'current-streak', 'top-exercise', 'top-avg-weight', 'volume-trend',
+])
 
 export interface AppSettings {
   theme: 'dark' | 'light' | 'woodland' | 'axe'

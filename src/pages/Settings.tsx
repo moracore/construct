@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
-import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
+import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout, migrateDoubleComponentWeights } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
 import type { DayLog, Exercise, Workout, MuscleGroup, HomePanelWidget, HomeLayout } from '../types'
-import { DEFAULT_HOME_SLOTS } from '../types'
+import { DEFAULT_HOME_SLOTS, VALID_PANEL_WIDGETS } from '../types'
 import MuscleIgnoreModal from '../components/MuscleIgnoreModal'
 import { loadPreset } from '../presets'
 
@@ -27,17 +27,15 @@ const MoonIcon = () => (
 )
 
 const WIDGET_OPTIONS: { id: HomePanelWidget; label: string }[] = [
-  { id: 'muscle-mvps',             label: 'Muscle MVPs' },
-  { id: 'week-volume',             label: 'Week Volume' },
-  { id: 'week-volume-pct',         label: 'Week Volume + % Change' },
-  { id: 'suggested-targets',       label: 'Suggested Targets' },
-  { id: 'weekly-frequency',        label: 'Weekly Frequency' },
-  { id: 'rest-day-counter',        label: 'Rest Days' },
-  { id: 'current-streak',          label: 'Streak' },
-  { id: 'last-session',            label: 'Last Session' },
-  { id: 'top-exercises',           label: 'Top Exercises (this week)' },
-  { id: 'muscle-volume-breakdown', label: 'Muscle Volume Breakdown' },
-  { id: 'volume-trend',            label: 'Volume Trend (8 weeks)' },
+  { id: 'week-volume',      label: 'Week Volume' },
+  { id: 'week-volume-pct',  label: 'Week Volume + % Change' },
+  { id: 'suggested-target', label: 'Suggested Target' },
+  { id: 'weekly-frequency', label: 'Weekly Frequency' },
+  { id: 'rest-day-counter', label: 'Rest Days' },
+  { id: 'current-streak',   label: 'Streak' },
+  { id: 'top-exercise',     label: 'Top Exercise (this week)' },
+  { id: 'top-avg-weight',   label: 'Heaviest Lift (avg weight/set)' },
+  { id: 'volume-trend',     label: 'Volume Trend (8 weeks)' },
 ]
 
 const HOME_LAYOUT_CYCLE: HomeLayout[] = ['body-full', 'body-only', 'calendar-only']
@@ -150,6 +148,7 @@ export default function Settings() {
   const [presetMode, setPresetMode] = useState<'simple' | 'extensive' | 'custom' | undefined>(undefined)
   const [presetStatus, setPresetStatus] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [migrateStatus, setMigrateStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -161,7 +160,8 @@ export default function Settings() {
       const layout: HomeLayout =
         raw === 'body-full' || raw === 'body-only' || raw === 'calendar-only' ? raw : 'body-full'
       setHomeLayout(layout)
-      setPanelSlots(s.homePanelSlots ?? DEFAULT_HOME_SLOTS)
+      const rawSlots = s.homePanelSlots ?? DEFAULT_HOME_SLOTS
+      setPanelSlots(rawSlots.map(w => VALID_PANEL_WIDGETS.has(w) ? w : DEFAULT_HOME_SLOTS[0]) as [HomePanelWidget, HomePanelWidget, HomePanelWidget])
       setIgnoredMuscles(s.ignoredMuscles ?? [])
       setPresetMode(s.presetMode)
     })
@@ -649,6 +649,24 @@ export default function Settings() {
               style={{ display: 'none' }}
               onChange={handleImport}
             />
+          </div>
+
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Fix R/L Weights</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {migrateStatus ?? 'Backfill weights on old R/L logs'}
+              </div>
+            </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={async () => {
+                const count = await migrateDoubleComponentWeights()
+                setMigrateStatus(count > 0 ? `Fixed ${count} set${count !== 1 ? 's' : ''}` : 'Already up to date')
+              }}
+            >
+              Fix
+            </button>
           </div>
         </div>
 

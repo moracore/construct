@@ -117,11 +117,38 @@ export async function deleteDayLog(id: string): Promise<void> {
   await db.delete('daylogs', id)
 }
 
+// Backfill leftWeight/rightWeight from weight for old L/R sets that were logged before the fix
+export async function migrateDoubleComponentWeights(): Promise<number> {
+  const db = await getDB()
+  const logs = await db.getAll('daylogs')
+  let count = 0
+  for (const log of logs) {
+    let modified = false
+    for (const ex of log.exercises) {
+      for (const set of ex.sets) {
+        if (
+          (set.leftReps != null || set.rightReps != null) &&
+          set.weight != null &&
+          set.leftWeight == null &&
+          set.rightWeight == null
+        ) {
+          set.leftWeight = set.weight
+          set.rightWeight = set.weight
+          modified = true
+          count++
+        }
+      }
+    }
+    if (modified) await db.put('daylogs', log)
+  }
+  return count
+}
+
 // Settings
 export async function getSettings(): Promise<AppSettings> {
   const db = await getDB()
   const stored = await db.get('settings', 'app')
-  return stored ?? { theme: 'dark', accentColor: '#0080FF' }
+  return stored ?? { theme: 'dark', accentColor: '#0080FF', homeLayout: 'body-full' }
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {

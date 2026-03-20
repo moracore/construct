@@ -56,7 +56,7 @@ function sessionToMarkdown(session: { workoutName: string; exercises: SessionExe
   let md = `# ${date} - ${days[d.getDay()]} - ${session.workoutName}\n`
   for (const ex of session.exercises) {
     if (ex.sets.length === 0) continue
-    const suffixes = [ex.isDoubleComponent ? 'L/R' : null, ex.isTimed ? 'Timed' : null].filter(Boolean)
+    const suffixes = [ex.isDoubleComponent ? 'R/L' : null, ex.isTimed ? 'Timed' : null].filter(Boolean)
     const suffix = suffixes.length ? ` (${suffixes.join(', ')})` : ''
     md += `\n## ${ex.exerciseName}${suffix}\n`
     ex.sets.forEach((s, i) => {
@@ -64,7 +64,7 @@ function sessionToMarkdown(session: { workoutName: string; exercises: SessionExe
       if (ex.isTimed) {
         if (ex.isDoubleComponent) {
           const w = s.weight != null ? `${s.weight}kg ` : (ex.isBodyweight ? 'BW ' : '')
-          line = `${w}L ${s.leftDuration ?? 0}s | R ${s.rightDuration ?? 0}s`
+          line = `${w}R ${s.rightDuration ?? 0}s | L ${s.leftDuration ?? 0}s`
         } else {
           const w = s.weight != null ? `${s.weight}kg ` : (ex.isBodyweight ? 'BW ' : '')
           line = `${w}${s.duration ?? 0}s`
@@ -72,7 +72,7 @@ function sessionToMarkdown(session: { workoutName: string; exercises: SessionExe
       } else if (ex.isDoubleComponent) {
         const lw = s.leftWeight != null ? `${s.leftWeight}kg` : ''
         const rw = s.rightWeight != null ? `${s.rightWeight}kg` : ''
-        line = `L ${lw} x ${s.leftReps ?? s.reps} | R ${rw} x ${s.rightReps ?? s.reps}`
+        line = `R ${rw} x ${s.rightReps ?? s.reps} | L ${lw} x ${s.leftReps ?? s.reps}`
       } else if (ex.isBodyweight) {
         line = `BW x ${s.reps}${s.weight ? ` (+${s.weight}kg)` : ''}`
       } else {

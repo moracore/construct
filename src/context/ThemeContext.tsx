@@ -34,24 +34,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--accent-rgb', hexToRgb(activeAccent))
   }
 
-  function toggleTheme() {
+  async function toggleTheme() {
+    const s = await getSettings()
     let nextTheme: AppSettings['theme'] = 'dark'
-    if (settings.theme === 'dark') nextTheme = 'light'
-    if (settings.theme === 'light') nextTheme = 'woodland'
-    if (settings.theme === 'woodland') nextTheme = 'axe'
-    if (settings.theme === 'axe') nextTheme = 'dark'
-
-    const next: AppSettings = {
-      ...settings,
-      theme: nextTheme,
-    }
+    if (s.theme === 'dark') nextTheme = 'light'
+    if (s.theme === 'light') nextTheme = 'woodland'
+    if (s.theme === 'woodland') nextTheme = 'axe'
+    if (s.theme === 'axe') nextTheme = 'dark'
+    const next: AppSettings = { ...s, theme: nextTheme }
     setSettings(next)
     applyTheme(next)
     saveSettings(next)
   }
 
-  function setAccentColor(color: string) {
-    const next: AppSettings = { ...settings, accentColor: color }
+  async function setAccentColor(color: string) {
+    const s = await getSettings()
+    const next: AppSettings = { ...s, accentColor: color }
     setSettings(next)
     applyTheme(next)
     saveSettings(next)
