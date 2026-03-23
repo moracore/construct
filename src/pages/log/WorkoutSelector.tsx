@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { getAllWorkouts } from '../../db'
+import { getAllWorkouts, getQuickLogsByDate, saveQuickLog } from '../../db'
 import { useActiveWorkout } from '../../context/ActiveWorkoutContext'
-import type { Workout } from '../../types'
+import type { Workout, Exercise, ExerciseSet, QuickExerciseLog } from '../../types'
+import ExercisePicker from '../../components/ExercisePicker'
 
 const PlusIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -16,16 +17,41 @@ const ResumeIcon = () => (
   </svg>
 )
 
+function genId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+const CheckIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
 export default function WorkoutSelector() {
   const navigate = useNavigate()
   const { session, startSession, clearSession } = useActiveWorkout()
   const [workouts, setWorkouts] = useState<Workout[]>([])
+
+  // Single exercise state
+  const [showPicker, setShowPicker] = useState(false)
+  const [quickExercise, setQuickExercise] = useState<Exercise | null>(null)
+  const [quickSets, setQuickSets] = useState<ExerciseSet[]>([])
+  const [quickWeight, setQuickWeight] = useState('')
+  const [quickReps, setQuickReps] = useState('')
+  const [todayQuickCount, setTodayQuickCount] = useState(0)
+  const [quickSaving, setQuickSaving] = useState(false)
+  const repsRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getAllWorkouts().then((all) => {
       all.sort((a, b) => a.name.localeCompare(b.name))
       setWorkouts(all)
     })
+    getQuickLogsByDate(todayISO()).then((logs) => setTodayQuickCount(logs.length))
   }, [])
 
   function selectWorkout(workout: Workout) {
@@ -36,6 +62,47 @@ export default function WorkoutSelector() {
   function startCustom() {
     startSession({ workoutName: 'Custom Workout', color: 'var(--accent)' })
     navigate('/log/active')
+  }
+
+  function handleQuickExerciseSelect(ex: Exercise) {
+    setQuickExercise(ex)
+    setQuickSets([])
+    setQuickWeight('')
+    setQuickReps('')
+  }
+
+  function addQuickSet() {
+    const w = parseFloat(quickWeight) || 0
+    const r = parseInt(quickReps) || 0
+    if (r <= 0) return
+    setQuickSets([...quickSets, { reps: r, weight: w || undefined }])
+    setQuickWeight(quickWeight) // keep weight for next set
+    setQuickReps('')
+    repsRef.current?.focus()
+  }
+
+  async function saveQuickExercise() {
+    if (!quickExercise || quickSets.length === 0) return
+    setQuickSaving(true)
+    const log: QuickExerciseLog = {
+      id: genId('ql'),
+      date: todayISO(),
+      exerciseId: quickExercise.id,
+      exerciseName: quickExercise.name,
+      primaryMuscleGroups: quickExercise.primaryMuscleGroups,
+      secondaryMuscleGroups: quickExercise.secondaryMuscleGroups,
+      isBodyweight: quickExercise.isBodyweight,
+      bodyweightType: quickExercise.bodyweightType,
+      isDoubleComponent: quickExercise.isDoubleComponent,
+      isTimed: quickExercise.isTimed,
+      sets: quickSets,
+      createdAt: Date.now(),
+    }
+    await saveQuickLog(log)
+    setTodayQuickCount((c) => c + 1)
+    setQuickExercise(null)
+    setQuickSets([])
+    setQuickSaving(false)
   }
 
   const elapsed = session
@@ -109,7 +176,112 @@ export default function WorkoutSelector() {
           </Link>
         </div>
 
-        {workouts.length === 0 && (
+        {/* Single Exercise */}
+        {todayQuickCount < 3 && !quickExercise && (
+          <>
+            <p className="section-title">Quick Log</p>
+            <button
+              className="workout-tile"
+              onClick={() => setShowPicker(true)}
+              style={{
+                '--tile-color': 'var(--text-muted)',
+                background: 'var(--bg-secondary)',
+                border: '1px dashed var(--border)',
+                opacity: 0.8,
+              } as React.CSSProperties}
+            >
+              <div className="workout-tile-content">
+                <div className="workout-tile-name" style={{ color: 'var(--text-secondary)' }}>Single Exercise</div>
+                <div className="workout-tile-meta">Log a quick exercise without a full workout</div>
+              </div>
+            </button>
+          </>
+        )}
+
+        {/* Inline set logger for quick exercise */}
+        {quickExercise && (
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{quickExercise.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {quickExercise.primaryMuscleGroups.join(', ')}
+                </div>
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ color: 'var(--text-muted)' }}
+                onClick={() => { setQuickExercise(null); setQuickSets([]) }}
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Logged sets */}
+            {quickSets.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {quickSets.map((s, i) => (
+                  <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+                    Set {i + 1}: {s.weight ? `${s.weight}kg × ` : ''}{s.reps} reps
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input row */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {!quickExercise.isBodyweight && (
+                <input
+                  type="number"
+                  placeholder="kg"
+                  value={quickWeight}
+                  onChange={(e) => setQuickWeight(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') repsRef.current?.focus() }}
+                  style={{ width: 70, padding: '8px 10px', fontSize: 14 }}
+                />
+              )}
+              <input
+                ref={repsRef}
+                type="number"
+                placeholder="reps"
+                value={quickReps}
+                onChange={(e) => setQuickReps(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') addQuickSet() }}
+                style={{ width: 70, padding: '8px 10px', fontSize: 14 }}
+              />
+              <button className="btn btn-secondary btn-sm" onClick={addQuickSet}>
+                Add Set
+              </button>
+            </div>
+
+            {/* Save */}
+            {quickSets.length > 0 && (
+              <button
+                className="btn btn-primary"
+                onClick={saveQuickExercise}
+                disabled={quickSaving}
+                style={{ gap: 6 }}
+              >
+                <CheckIcon /> Save ({quickSets.length} set{quickSets.length !== 1 ? 's' : ''})
+              </button>
+            )}
+          </div>
+        )}
+
+        {todayQuickCount > 0 && !quickExercise && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
+            {todayQuickCount}/3 single exercises logged today
+          </div>
+        )}
+
+        <ExercisePicker
+          open={showPicker}
+          onClose={() => setShowPicker(false)}
+          onSelect={handleQuickExerciseSelect}
+          alreadyAddedIds={[]}
+        />
+
+        {workouts.length === 0 && !quickExercise && (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <p style={{ marginBottom: 16, color: 'var(--text-muted)' }}>
               Create workout presets for quick access, or start a custom session now.

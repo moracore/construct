@@ -103,6 +103,21 @@ export const VALID_PANEL_WIDGETS = new Set<string>([
   'rest-day-counter', 'current-streak', 'top-exercise', 'top-avg-weight', 'volume-trend',
 ])
 
+export interface QuickExerciseLog {
+  id: string
+  date: string // YYYY-MM-DD
+  exerciseId: string
+  exerciseName: string
+  primaryMuscleGroups: MuscleGroup[]
+  secondaryMuscleGroups: MuscleGroup[]
+  isBodyweight: boolean
+  bodyweightType?: 'standard' | 'assisted' | 'weighted'
+  isDoubleComponent: boolean
+  isTimed?: boolean
+  sets: ExerciseSet[]
+  createdAt: number
+}
+
 export interface AppSettings {
   theme: 'dark' | 'light' | 'woodland' | 'axe'
   accentColor: string // hex
@@ -114,4 +129,5 @@ export interface AppSettings {
   ignoredMuscles?: MuscleGroup[] // excluded from ghost view and suggested targets
   presetMode?: 'simple' | 'extensive' | 'custom'
   onboardingComplete?: boolean
+  quickExercisesCountForStreak?: boolean
 }

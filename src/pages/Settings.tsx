@@ -126,6 +126,7 @@ export default function Settings() {
   const [panelSlots, setPanelSlots] = useState<[HomePanelWidget, HomePanelWidget, HomePanelWidget]>(DEFAULT_HOME_SLOTS)
   const [ignoredMuscles, setIgnoredMuscles] = useState<MuscleGroup[]>([])
   const [showMuscleModal, setShowMuscleModal] = useState(false)
+  const [quickCountsForStreak, setQuickCountsForStreak] = useState(false)
 
   const [hSlider, setHSlider] = useState(() => slidersFromHex(accentColor)[0])
   const [sSlider, setSSlider] = useState(() => slidersFromHex(accentColor)[1])
@@ -164,6 +165,7 @@ export default function Settings() {
       setPanelSlots(rawSlots.map(w => VALID_PANEL_WIDGETS.has(w) ? w : DEFAULT_HOME_SLOTS[0]) as [HomePanelWidget, HomePanelWidget, HomePanelWidget])
       setIgnoredMuscles(s.ignoredMuscles ?? [])
       setPresetMode(s.presetMode)
+      setQuickCountsForStreak(s.quickExercisesCountForStreak === true)
     })
   }, [])
 
@@ -184,6 +186,13 @@ export default function Settings() {
     setShowGhost(next)
     const s = await getSettings()
     await saveSettings({ ...s, showGhostMuscles: next })
+  }
+
+  async function handleQuickStreakToggle() {
+    const next = !quickCountsForStreak
+    setQuickCountsForStreak(next)
+    const s = await getSettings()
+    await saveSettings({ ...s, quickExercisesCountForStreak: next })
   }
 
   async function handleIgnoredMusclesChange(next: MuscleGroup[]) {
@@ -487,6 +496,17 @@ export default function Settings() {
               onChange={(e) => handleBodyweightChange(Number(e.target.value))}
               style={{ width: 72, textAlign: 'right', padding: '6px 10px', fontSize: 15, fontWeight: 600 }}
             />
+          </div>
+
+          <div className="row-between">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Single Exercises Count for Streak</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Include quick-logged exercises in weekly streak</div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={quickCountsForStreak} onChange={handleQuickStreakToggle} />
+              <div className="toggle-track"><div className="toggle-thumb" /></div>
+            </label>
           </div>
 
           <div>

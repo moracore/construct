@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { Exercise, Workout, DayLog, AppSettings } from '../types'
+import type { Exercise, Workout, DayLog, AppSettings, QuickExerciseLog } from '../types'
 
 interface GymDB extends DBSchema {
   exercises: {
@@ -21,27 +21,38 @@ interface GymDB extends DBSchema {
     key: string
     value: AppSettings & { id: string }
   }
+  quicklogs: {
+    key: string
+    value: QuickExerciseLog
+    indexes: { 'by-date': string }
+  }
 }
 
 const DB_NAME = 'gymapp'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBPDatabase<GymDB>> | null = null
 
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB<GymDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const exerciseStore = db.createObjectStore('exercises', { keyPath: 'id' })
-        exerciseStore.createIndex('by-name', 'name')
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const exerciseStore = db.createObjectStore('exercises', { keyPath: 'id' })
+          exerciseStore.createIndex('by-name', 'name')
 
-        const workoutStore = db.createObjectStore('workouts', { keyPath: 'id' })
-        workoutStore.createIndex('by-name', 'name')
+          const workoutStore = db.createObjectStore('workouts', { keyPath: 'id' })
+          workoutStore.createIndex('by-name', 'name')
 
-        const logStore = db.createObjectStore('daylogs', { keyPath: 'id' })
-        logStore.createIndex('by-date', 'date')
+          const logStore = db.createObjectStore('daylogs', { keyPath: 'id' })
+          logStore.createIndex('by-date', 'date')
 
-        db.createObjectStore('settings', { keyPath: 'id' })
+          db.createObjectStore('settings', { keyPath: 'id' })
+        }
+        if (oldVersion < 2) {
+          const quickStore = db.createObjectStore('quicklogs', { keyPath: 'id' })
+          quickStore.createIndex('by-date', 'date')
+        }
       },
     })
   }
@@ -115,6 +126,27 @@ export async function saveDayLog(log: DayLog): Promise<void> {
 export async function deleteDayLog(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('daylogs', id)
+}
+
+// QuickExerciseLogs
+export async function getAllQuickLogs(): Promise<QuickExerciseLog[]> {
+  const db = await getDB()
+  return db.getAll('quicklogs')
+}
+
+export async function getQuickLogsByDate(date: string): Promise<QuickExerciseLog[]> {
+  const db = await getDB()
+  return db.getAllFromIndex('quicklogs', 'by-date', date)
+}
+
+export async function saveQuickLog(log: QuickExerciseLog): Promise<void> {
+  const db = await getDB()
+  await db.put('quicklogs', log)
+}
+
+export async function deleteQuickLog(id: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('quicklogs', id)
 }
 
 // Backfill leftWeight/rightWeight from weight for old L/R sets that were logged before the fix

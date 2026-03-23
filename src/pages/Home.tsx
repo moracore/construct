@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAllDayLogs, getAllWorkouts, getSettings } from '../db'
+import { getAllDayLogs, getAllWorkouts, getAllQuickLogs, getSettings } from '../db'
 import { WEEKDAY_LABELS, monthName } from '../utils/calendar'
 import type { DayLog, HomePanelWidget, HomeLayout, MuscleGroup } from '../types'
 import { DEFAULT_HOME_SLOTS, VALID_PANEL_WIDGETS } from '../types'
@@ -284,6 +284,7 @@ export default function Home() {
 
   const [logMap, setLogMap]   = useState<Record<string, DayLog>>({})
   const [colorMap, setColorMap] = useState<Record<string, string>>({})
+  const [quickCountMap, setQuickCountMap] = useState<Record<string, number>>({})
 
   const fatigue = useMuscleFatigue()
   const loaded  = fatigue.opacities !== null
@@ -333,7 +334,7 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    Promise.all([getAllDayLogs(), getAllWorkouts()]).then(([logs, workouts]) => {
+    Promise.all([getAllDayLogs(), getAllWorkouts(), getAllQuickLogs()]).then(([logs, workouts, quickLogs]) => {
       const lm: Record<string, DayLog> = {}
       logs.forEach((l) => { lm[l.date] = l })
       setLogMap(lm)
@@ -341,6 +342,10 @@ export default function Home() {
       const wm: Record<string, string> = {}
       workouts.forEach((w) => { wm[w.name] = w.color })
       setColorMap(wm)
+
+      const qm: Record<string, number> = {}
+      quickLogs.forEach((q) => { qm[q.date] = (qm[q.date] ?? 0) + 1 })
+      setQuickCountMap(qm)
     })
   }, [])
 
@@ -431,6 +436,8 @@ export default function Home() {
                       ? monthName(cell.monthNum).charAt(0)
                       : cell.dayNum
 
+                    const dotCount = Math.min(quickCountMap[cell.date] ?? 0, 3)
+
                     return (
                       <div
                         key={cell.date}
@@ -444,6 +451,13 @@ export default function Home() {
                         >
                           {label}
                         </div>
+                        {dotCount > 0 && (
+                          <div className="home-day-dots">
+                            {Array.from({ length: dotCount }, (_, i) => (
+                              <div key={i} className="home-day-dot" />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}

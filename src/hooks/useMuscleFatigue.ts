@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { getAllDayLogs, getAllExercises, getSettings } from '../db'
+import { getAllDayLogs, getAllExercises, getSettings, getAllQuickLogs } from '../db'
 import { MUSCLE_GROUPS, type MuscleGroup } from '../types'
-import type { Exercise, ExerciseSet } from '../types'
+import type { Exercise, ExerciseSet, QuickExerciseLog } from '../types'
 
-const TARGET_14D_VOLUME = 8000
+const WEEKLY_AVG_WEEKS = 8
 
 // ── Exported sub-types ────────────────────────────────────────────────────────
 
@@ -151,6 +151,38 @@ function setVolume(set: ExerciseSet, ex: Exercise, userBodyweight?: number): num
 }
 
 type LogMap = Record<string, { exercises: { exerciseId: string; sets: ExerciseSet[] }[] }>
+type QuickLogMap = Record<string, QuickExerciseLog[]>
+
+// Compute volume for a single quick log entry using its embedded exercise data
+function quickLogVolume(ql: QuickExerciseLog, userBodyweight?: number): number {
+  const fakeEx: Exercise = {
+    id: ql.exerciseId,
+    name: ql.exerciseName,
+    isBodyweight: ql.isBodyweight,
+    bodyweightType: ql.bodyweightType,
+    isDoubleComponent: ql.isDoubleComponent,
+    isTimed: ql.isTimed,
+    primaryMuscleGroups: ql.primaryMuscleGroups,
+    secondaryMuscleGroups: ql.secondaryMuscleGroups,
+    createdAt: 0,
+  }
+  let vol = 0
+  for (const set of ql.sets) vol += setVolume(set, fakeEx, userBodyweight)
+  return vol
+}
+
+function addQuickVolumeForDay(
+  accum: Partial<Record<MuscleGroup, number>>,
+  quickLogs: QuickExerciseLog[],
+  multiplier: number,
+  userBodyweight?: number,
+) {
+  for (const ql of quickLogs) {
+    const vol = quickLogVolume(ql, userBodyweight)
+    for (const mg of ql.primaryMuscleGroups)   accum[mg] = (accum[mg] ?? 0) + vol * multiplier
+    for (const mg of ql.secondaryMuscleGroups) accum[mg] = (accum[mg] ?? 0) + vol * 0.25 * multiplier
+  }
+}
 
 // Raw per-muscle volume (no decay) for a day range
 function computeMusclePeriod(
@@ -159,21 +191,27 @@ function computeMusclePeriod(
   daysStart: number,
   daysEnd: number,
   userBodyweight?: number,
+  quickLogMap?: QuickLogMap,
 ): Partial<Record<MuscleGroup, number>> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const accum: Partial<Record<MuscleGroup, number>> = {}
   for (let d = daysStart; d < daysEnd; d++) {
     const t = subtractDays(today, d)
-    const log = logMap[toISO(t)]
-    if (!log) continue
-    for (const logged of log.exercises) {
-      const ex = exerciseMap.get(logged.exerciseId)
-      if (!ex) continue
-      let rawVol = 0
-      for (const set of logged.sets) rawVol += setVolume(set, ex, userBodyweight)
-      for (const mg of ex.primaryMuscleGroups)   accum[mg] = (accum[mg] ?? 0) + rawVol
-      for (const mg of ex.secondaryMuscleGroups) accum[mg] = (accum[mg] ?? 0) + rawVol * 0.25
+    const dateKey = toISO(t)
+    const log = logMap[dateKey]
+    if (log) {
+      for (const logged of log.exercises) {
+        const ex = exerciseMap.get(logged.exerciseId)
+        if (!ex) continue
+        let rawVol = 0
+        for (const set of logged.sets) rawVol += setVolume(set, ex, userBodyweight)
+        for (const mg of ex.primaryMuscleGroups)   accum[mg] = (accum[mg] ?? 0) + rawVol
+        for (const mg of ex.secondaryMuscleGroups) accum[mg] = (accum[mg] ?? 0) + rawVol * 0.25
+      }
+    }
+    if (quickLogMap?.[dateKey]) {
+      addQuickVolumeForDay(accum, quickLogMap[dateKey], 1, userBodyweight)
     }
   }
   return accum
@@ -186,32 +224,40 @@ function computeRawTotal(
   daysStart: number,
   daysEnd: number,
   userBodyweight?: number,
+  quickLogMap?: QuickLogMap,
 ): number {
-  return Object.values(computeMusclePeriod(logMap, exerciseMap, daysStart, daysEnd, userBodyweight))
+  return Object.values(computeMusclePeriod(logMap, exerciseMap, daysStart, daysEnd, userBodyweight, quickLogMap))
     .reduce((s, v) => s + v, 0)
 }
 
-// Decayed effective volume for the current 14-day window
+// Decayed effective volume — sigmoid curve over 18-day window
+// Days 0-4 retain most activation, day 6 = half, days 7-17 trail off
 function computeWindow(
   logMap: LogMap,
   exerciseMap: Map<string, Exercise>,
   userBodyweight?: number,
+  quickLogMap?: QuickLogMap,
 ): Partial<Record<MuscleGroup, number>> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const accum: Partial<Record<MuscleGroup, number>> = {}
-  for (let d = 0; d < 14; d++) {
+  for (let d = 0; d < 18; d++) {
     const t = subtractDays(today, d)
-    const log = logMap[toISO(t)]
-    if (!log) continue
-    const decay = (14 - d) / 14
-    for (const logged of log.exercises) {
-      const ex = exerciseMap.get(logged.exerciseId)
-      if (!ex) continue
-      let rawVol = 0
-      for (const set of logged.sets) rawVol += setVolume(set, ex, userBodyweight)
-      for (const mg of ex.primaryMuscleGroups)   accum[mg] = (accum[mg] ?? 0) + rawVol * decay
-      for (const mg of ex.secondaryMuscleGroups) accum[mg] = (accum[mg] ?? 0) + rawVol * 0.25 * decay
+    const dateKey = toISO(t)
+    const decay = 1 / (1 + Math.exp(d - 6))
+    const log = logMap[dateKey]
+    if (log) {
+      for (const logged of log.exercises) {
+        const ex = exerciseMap.get(logged.exerciseId)
+        if (!ex) continue
+        let rawVol = 0
+        for (const set of logged.sets) rawVol += setVolume(set, ex, userBodyweight)
+        for (const mg of ex.primaryMuscleGroups)   accum[mg] = (accum[mg] ?? 0) + rawVol * decay
+        for (const mg of ex.secondaryMuscleGroups) accum[mg] = (accum[mg] ?? 0) + rawVol * 0.25 * decay
+      }
+    }
+    if (quickLogMap?.[dateKey]) {
+      addQuickVolumeForDay(accum, quickLogMap[dateKey], decay, userBodyweight)
     }
   }
   return accum
@@ -224,31 +270,40 @@ export function useMuscleFatigue(): FatigueResult {
 
   useEffect(() => {
     async function compute() {
-      const [logs, exercises, settings] = await Promise.all([
-        getAllDayLogs(), getAllExercises(), getSettings(),
+      const [logs, exercises, settings, quickLogs] = await Promise.all([
+        getAllDayLogs(), getAllExercises(), getSettings(), getAllQuickLogs(),
       ])
 
       const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
       const logMap: LogMap = {}
       logs.forEach((l) => { logMap[l.date] = l })
 
+      const qlMap: QuickLogMap = {}
+      quickLogs.forEach((q) => {
+        if (!qlMap[q.date]) qlMap[q.date] = []
+        qlMap[q.date].push(q)
+      })
+
       const ubw = settings.userBodyweight
+      const quickCountsForStreak = settings.quickExercisesCountForStreak === true
 
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const todayISO = toISO(today)
 
-      // ── Opacities — decayed 14-day window ─────────────────────────────────
-      const currentRaw = computeWindow(logMap, exerciseMap, ubw)
+      // ── Opacities — sigmoid-decayed window vs per-muscle weekly average ──
+      const currentRaw = computeWindow(logMap, exerciseMap, ubw, qlMap)
+      const historicalVol = computeMusclePeriod(logMap, exerciseMap, 0, WEEKLY_AVG_WEEKS * 7, ubw, qlMap)
       const opacities: Partial<Record<MuscleGroup, number>> = {}
       for (const [mg, vol] of Object.entries(currentRaw) as [MuscleGroup, number][]) {
-        const ratio = vol / TARGET_14D_VOLUME
+        const weeklyAvg = ((historicalVol[mg] ?? 0) / WEEKLY_AVG_WEEKS) || 0
+        const ratio = weeklyAvg > 0 ? vol / weeklyAvg : (vol > 0 ? 1 : 0)
         opacities[mg] = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0
       }
 
       // ── Muscle MVPs — above their 4-week average this week ────────────────
-      const thisWeek  = computeMusclePeriod(logMap, exerciseMap, 0, 7, ubw)
-      const fourWeeks = computeMusclePeriod(logMap, exerciseMap, 0, 28, ubw)
+      const thisWeek  = computeMusclePeriod(logMap, exerciseMap, 0, 7, ubw, qlMap)
+      const fourWeeks = computeMusclePeriod(logMap, exerciseMap, 0, 28, ubw, qlMap)
       const muscleMVPs = MUSCLE_GROUPS.filter((mg) => {
         const tw  = thisWeek[mg]  ?? 0
         const avg = (fourWeeks[mg] ?? 0) / 4
@@ -260,8 +315,8 @@ export function useMuscleFatigue(): FatigueResult {
         .sort((a, b) => (currentRaw[a] ?? 0) - (currentRaw[b] ?? 0))
 
       // ── Week volume + delta ───────────────────────────────────────────────
-      const weekVolume      = computeRawTotal(logMap, exerciseMap, 0, 7, ubw)
-      const prevWeekVolume  = computeRawTotal(logMap, exerciseMap, 7, 14, ubw)
+      const weekVolume      = computeRawTotal(logMap, exerciseMap, 0, 7, ubw, qlMap)
+      const prevWeekVolume  = computeRawTotal(logMap, exerciseMap, 7, 14, ubw, qlMap)
       const weekVolumeDelta = prevWeekVolume === 0
         ? (weekVolume > 0 ? 100 : 0)
         : ((weekVolume - prevWeekVolume) / prevWeekVolume) * 100
@@ -278,6 +333,9 @@ export function useMuscleFatigue(): FatigueResult {
 
       // ── Current streak — consecutive Mon–Sun weeks with ≥1 session ────────
       const logDateSet = new Set(logs.map(l => l.date))
+      if (quickCountsForStreak) {
+        quickLogs.forEach(q => logDateSet.add(q.date))
+      }
       const currentStreak = computeStreak(logDateSet, today)
 
       // ── Last session ─────────────────────────────────────────────────────
@@ -357,7 +415,7 @@ export function useMuscleFatigue(): FatigueResult {
       // ── Volume trend — 8 weekly totals, index 0 = 7 weeks ago ────────────
       const volumeTrend = Array.from({ length: 8 }, (_, i) => {
         const weeksAgo = 7 - i // i=0 → 7weeksAgo, i=7 → current week
-        return computeRawTotal(logMap, exerciseMap, weeksAgo * 7, (weeksAgo + 1) * 7, ubw)
+        return computeRawTotal(logMap, exerciseMap, weeksAgo * 7, (weeksAgo + 1) * 7, ubw, qlMap)
       })
 
       setResult({
