@@ -17,6 +17,33 @@ const ResumeIcon = () => (
   </svg>
 )
 
+interface PendingSet {
+  weight: string
+  reps: string
+  leftReps: string
+  rightReps: string
+}
+
+function emptyPending(): PendingSet {
+  return { weight: '', reps: '', leftReps: '', rightReps: '' }
+}
+
+function prefillFromLastQuick(last: ExerciseSet, ex: Exercise): PendingSet {
+  if (ex.isDoubleComponent) {
+    return {
+      weight: last.weight?.toString() ?? last.leftWeight?.toString() ?? '',
+      reps: '',
+      leftReps: last.leftReps?.toString() ?? last.reps.toString(),
+      rightReps: last.rightReps?.toString() ?? last.reps.toString(),
+    }
+  }
+  return {
+    weight: last.weight?.toString() ?? '',
+    reps: last.reps.toString(),
+    leftReps: '', rightReps: '',
+  }
+}
+
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 }
@@ -40,11 +67,9 @@ export default function WorkoutSelector() {
   const [showPicker, setShowPicker] = useState(false)
   const [quickExercise, setQuickExercise] = useState<Exercise | null>(null)
   const [quickSets, setQuickSets] = useState<ExerciseSet[]>([])
-  const [quickWeight, setQuickWeight] = useState('')
-  const [quickReps, setQuickReps] = useState('')
+  const [pending, setPending] = useState<PendingSet>(emptyPending())
   const [todayQuickCount, setTodayQuickCount] = useState(0)
   const [quickSaving, setQuickSaving] = useState(false)
-  const repsRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getAllWorkouts().then((all) => {
@@ -67,18 +92,26 @@ export default function WorkoutSelector() {
   function handleQuickExerciseSelect(ex: Exercise) {
     setQuickExercise(ex)
     setQuickSets([])
-    setQuickWeight('')
-    setQuickReps('')
+    setPending(emptyPending())
   }
 
   function addQuickSet() {
-    const w = parseFloat(quickWeight) || 0
-    const r = parseInt(quickReps) || 0
-    if (r <= 0) return
-    setQuickSets([...quickSets, { reps: r, weight: w || undefined }])
-    setQuickWeight(quickWeight) // keep weight for next set
-    setQuickReps('')
-    repsRef.current?.focus()
+    if (!quickExercise) return
+    let set: ExerciseSet
+    if (quickExercise.isDoubleComponent) {
+      const lr = parseInt(pending.leftReps) || 0
+      const rr = parseInt(pending.rightReps) || 0
+      if (!lr && !rr) return
+      const w = pending.weight ? parseFloat(pending.weight) : undefined
+      set = { reps: Math.max(lr, rr), weight: w, leftWeight: w, rightWeight: w, leftReps: lr || undefined, rightReps: rr || undefined }
+    } else {
+      const reps = parseInt(pending.reps) || 0
+      if (!reps) return
+      set = { reps, weight: pending.weight ? parseFloat(pending.weight) : undefined }
+    }
+    const newSets = [...quickSets, set]
+    setQuickSets(newSets)
+    setPending(prefillFromLastQuick(set, quickExercise))
   }
 
   async function saveQuickExercise() {
@@ -199,74 +232,118 @@ export default function WorkoutSelector() {
         )}
 
         {/* Inline set logger for quick exercise */}
-        {quickExercise && (
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>{quickExercise.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  {quickExercise.primaryMuscleGroups.join(', ')}
+        {quickExercise && (() => {
+          const ex = quickExercise
+          const bwLabel = ex.bodyweightType === 'assisted' ? 'BW-' : 'BW'
+
+          const inp = (placeholder: string, field: keyof PendingSet, width: number) => (
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder={placeholder}
+              value={pending[field]}
+              onChange={(e) => setPending((p) => ({ ...p, [field]: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && addQuickSet()}
+              style={{ width, textAlign: 'center', padding: '7px 4px', fontSize: 15, flexShrink: 0 }}
+            />
+          )
+
+          function renderWeightCell(width: number) {
+            if (!ex.isBodyweight) return inp('kg', 'weight', width)
+            if (ex.bodyweightType === 'weighted') {
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                  {inp('+kg', 'weight', width)}
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>extra</span>
                 </div>
-              </div>
-              <button
-                className="btn btn-ghost btn-sm"
-                style={{ color: 'var(--text-muted)' }}
-                onClick={() => { setQuickExercise(null); setQuickSets([]) }}
-              >
-                Cancel
-              </button>
-            </div>
+              )
+            }
+            return <span style={{ width, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>{bwLabel}</span>
+          }
 
-            {/* Logged sets */}
-            {quickSets.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {quickSets.map((s, i) => (
-                  <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
-                    Set {i + 1}: {s.weight ? `${s.weight}kg × ` : ''}{s.reps} reps
+          function formatSet(s: ExerciseSet, i: number) {
+            if (ex.isDoubleComponent) {
+              const w = s.weight != null ? `${s.weight}kg × ` : ''
+              return `Set ${i + 1}: ${w}R${s.rightReps ?? 0} | L${s.leftReps ?? 0}`
+            }
+            return `Set ${i + 1}: ${s.weight ? `${s.weight}kg × ` : ''}${s.reps} reps`
+          }
+
+          return (
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{ex.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {[
+                      ex.primaryMuscleGroups.join(', '),
+                      ex.isBodyweight && 'Bodyweight',
+                      ex.isDoubleComponent && 'L/R',
+                      ex.isTimed && 'Timed',
+                    ].filter(Boolean).join(' · ')}
                   </div>
-                ))}
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: 'var(--text-muted)' }}
+                  onClick={() => { setQuickExercise(null); setQuickSets([]) }}
+                >
+                  Cancel
+                </button>
               </div>
-            )}
 
-            {/* Input row */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {!quickExercise.isBodyweight && (
-                <input
-                  type="number"
-                  placeholder="kg"
-                  value={quickWeight}
-                  onChange={(e) => setQuickWeight(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') repsRef.current?.focus() }}
-                  style={{ width: 70, padding: '8px 10px', fontSize: 14 }}
-                />
+              {/* Logged sets */}
+              {quickSets.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {quickSets.map((s, i) => (
+                    <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+                      {formatSet(s, i)}
+                    </div>
+                  ))}
+                </div>
               )}
-              <input
-                ref={repsRef}
-                type="number"
-                placeholder="reps"
-                value={quickReps}
-                onChange={(e) => setQuickReps(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') addQuickSet() }}
-                style={{ width: 70, padding: '8px 10px', fontSize: 14 }}
-              />
-              <button className="btn btn-secondary btn-sm" onClick={addQuickSet}>
-                Add Set
-              </button>
-            </div>
 
-            {/* Save */}
-            {quickSets.length > 0 && (
-              <button
-                className="btn btn-primary"
-                onClick={saveQuickExercise}
-                disabled={quickSaving}
-                style={{ gap: 6 }}
-              >
-                <CheckIcon /> Save ({quickSets.length} set{quickSets.length !== 1 ? 's' : ''})
-              </button>
-            )}
-          </div>
-        )}
+              {/* Input row — matches ActiveWorkout SetInput format */}
+              <div className="set-input-row">
+                <span className="set-number">Set {quickSets.length + 1}</span>
+
+                {ex.isDoubleComponent ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+                    {renderWeightCell(60)}
+                    <span style={{ width: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
+                    <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
+                    {inp('reps', 'rightReps', 44)}
+                    <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
+                    <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>L</span>
+                    {inp('reps', 'leftReps', 44)}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                    {renderWeightCell(72)}
+                    <span style={{ width: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }}>×</span>
+                    {inp('reps', 'reps', 52)}
+                  </div>
+                )}
+
+                <button className="btn btn-primary btn-icon btn-sm" onClick={addQuickSet} title="Log set">
+                  <CheckIcon />
+                </button>
+              </div>
+
+              {/* Save */}
+              {quickSets.length > 0 && (
+                <button
+                  className="btn btn-primary"
+                  onClick={saveQuickExercise}
+                  disabled={quickSaving}
+                  style={{ gap: 6 }}
+                >
+                  <CheckIcon /> Save ({quickSets.length} set{quickSets.length !== 1 ? 's' : ''})
+                </button>
+              )}
+            </div>
+          )
+        })()}
 
         {todayQuickCount > 0 && !quickExercise && (
           <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>

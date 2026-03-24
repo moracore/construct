@@ -449,15 +449,15 @@ export default function Home() {
                           className={cls}
                           style={color ? { '--day-color': color } as React.CSSProperties : undefined}
                         >
-                          {label}
+                          <span>{label}</span>
+                          {dotCount > 0 && (
+                            <div className="home-day-dots">
+                              {Array.from({ length: dotCount }, (_, i) => (
+                                <div key={i} className="home-day-dot" />
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {dotCount > 0 && (
-                          <div className="home-day-dots">
-                            {Array.from({ length: dotCount }, (_, i) => (
-                              <div key={i} className="home-day-dot" />
-                            ))}
-                          </div>
-                        )}
                       </div>
                     )
                   })}
