@@ -4,6 +4,9 @@ import type { TimedSetPageState } from './TimedSetPage'
 import { useActiveWorkout, type SessionExercise, type SessionSet } from '../../context/ActiveWorkoutContext'
 import { useRestTimer } from '../../context/RestTimerContext'
 import { getSettings, getWorkout } from '../../db'
+import { optimizeExerciseOrder } from '../../lib/ai'
+import { buildExerciseOrderInput } from '../../lib/aiContext'
+import type { AiKeys } from '../../lib/ai'
 import ExercisePicker from '../../components/ExercisePicker'
 import type { Exercise } from '../../types'
 
@@ -28,6 +31,17 @@ const CheckIcon = () => (
 const UndoIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+  </svg>
+)
+const SortIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="15" y2="12" /><line x1="3" y1="18" x2="9" y2="18" />
+  </svg>
+)
+const SpinIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+    style={{ animation: 'spin 0.8s linear infinite' }}>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 )
 
@@ -102,36 +116,19 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
       const rr = parseInt(v.rightReps) || 0
       if (!lr && !rr) return
       const w = v.weight ? parseFloat(v.weight) : undefined
-      onLog({
-        reps: Math.max(lr, rr),
-        weight: w,
-        leftWeight: w,
-        rightWeight: w,
-        leftReps: lr || undefined,
-        rightReps: rr || undefined,
-        loggedAt: Date.now(),
-      })
+      onLog({ reps: Math.max(lr, rr), weight: w, leftWeight: w, rightWeight: w, leftReps: lr || undefined, rightReps: rr || undefined, loggedAt: Date.now() })
     } else {
       const reps = parseInt(v.reps) || 0
       if (!reps) return
-      onLog({
-        reps,
-        weight: v.weight ? parseFloat(v.weight) : undefined,
-        loggedAt: Date.now(),
-      })
+      onLog({ reps, weight: v.weight ? parseFloat(v.weight) : undefined, loggedAt: Date.now() })
     }
   }
 
   const inp = (placeholder: string, field: keyof PendingSet, width: number) => (
-    <input
-      type="number"
-      inputMode="decimal"
-      placeholder={placeholder}
-      value={v[field]}
+    <input type="number" inputMode="decimal" placeholder={placeholder} value={v[field]}
       onChange={(e) => setV((p) => ({ ...p, [field]: e.target.value }))}
       onKeyDown={(e) => e.key === 'Enter' && handleLog()}
-      style={{ width, textAlign: 'center', padding: '7px 4px', fontSize: 15, flexShrink: 0 }}
-    />
+      style={{ width, textAlign: 'center', padding: '7px 4px', fontSize: 15, flexShrink: 0 }} />
   )
 
   const bwLabel = ex.bodyweightType === 'assisted' ? 'BW-' : 'BW'
@@ -152,7 +149,6 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
   return (
     <div className="set-input-row">
       <span className="set-number">Set {setNumber}</span>
-
       {ex.isDoubleComponent ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
           {renderWeightCell(60)}
@@ -170,42 +166,34 @@ function SetInput({ ex, setNumber, onLog, onCancel, initialValues }: SetInputPro
           {inp('reps', 'reps', 52)}
         </div>
       )}
-
-      <button className="btn btn-primary btn-icon btn-sm" onClick={handleLog} title="Log set">
-        <CheckIcon />
-      </button>
-      <button className="btn btn-ghost btn-icon btn-sm" onClick={onCancel} title="Cancel" style={{ color: 'var(--text-muted)' }}>
-        ×
-      </button>
+      <button className="btn btn-primary btn-icon btn-sm" onClick={handleLog} title="Log set"><CheckIcon /></button>
+      <button className="btn btn-ghost btn-icon btn-sm" onClick={onCancel} title="Cancel" style={{ color: 'var(--text-muted)' }}>×</button>
     </div>
   )
 }
 
 // ── Set display row ─────────────────────────────────────────────────────────
-function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, isTimed }: { set: SessionSet; number: number; isDoubleComponent: boolean; isBodyweight: boolean; bodyweightType?: 'standard' | 'assisted' | 'weighted'; isTimed?: boolean }) {
+function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, isTimed }: {
+  set: SessionSet; number: number; isDoubleComponent: boolean
+  isBodyweight: boolean; bodyweightType?: 'standard' | 'assisted' | 'weighted'; isTimed?: boolean
+}) {
   const cell = (content: string | number, width: number, muted = false) => (
-    <span style={{ width, textAlign: 'center', fontSize: 14, color: muted ? 'var(--text-muted)' : 'var(--text-secondary)', flexShrink: 0 }}>
-      {content}
-    </span>
+    <span style={{ width, textAlign: 'center', fontSize: 14, color: muted ? 'var(--text-muted)' : 'var(--text-secondary)', flexShrink: 0 }}>{content}</span>
   )
-
   function bwWeightLabel(w: number | undefined): string {
     if (!isBodyweight) return `${w ?? '—'}kg`
     if (bodyweightType === 'assisted') return 'BW-'
     if (bodyweightType === 'weighted') return w ? `BW+${w}kg` : 'BW'
     return 'BW'
   }
-
   const w = set.weight ?? set.leftWeight
-
   if (isTimed) {
     return (
       <div className="set-logged-row">
         <span className="set-number">Set {number}</span>
         {isDoubleComponent ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-            {cell(bwWeightLabel(w), 60)}
-            {cell('·', 16, true)}
+            {cell(bwWeightLabel(w), 60)}{cell('·', 16, true)}
             <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
             {cell(formatDuration(set.rightDuration ?? 0), 54)}
             <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
@@ -214,22 +202,18 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, 
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-            {cell(bwWeightLabel(set.weight), 72)}
-            {cell('·', 20, true)}
-            {cell(formatDuration(set.duration ?? 0), 72)}
+            {cell(bwWeightLabel(set.weight), 72)}{cell('·', 20, true)}{cell(formatDuration(set.duration ?? 0), 72)}
           </div>
         )}
       </div>
     )
   }
-
   return (
     <div className="set-logged-row">
       <span className="set-number">Set {number}</span>
       {isDoubleComponent ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-          {cell(bwWeightLabel(w), 60)}
-          {cell('×', 16, true)}
+          {cell(bwWeightLabel(w), 60)}{cell('×', 16, true)}
           <span style={{ width: 14, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>R</span>
           {cell(set.rightReps ?? set.reps, 44)}
           <span style={{ width: 12, textAlign: 'center', fontSize: 12, color: 'var(--border)', flexShrink: 0 }}>|</span>
@@ -238,9 +222,7 @@ function SetRow({ set, number, isDoubleComponent, isBodyweight, bodyweightType, 
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-          {cell(bwWeightLabel(set.weight), 72)}
-          {cell('×', 20, true)}
-          {cell(set.reps, 52)}
+          {cell(bwWeightLabel(set.weight), 72)}{cell('×', 20, true)}{cell(set.reps, 52)}
         </div>
       )}
     </div>
@@ -263,10 +245,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
   const [initialValues, setInitialValues] = useState<PendingSet>(emptyPending())
 
   function handleAddSet() {
-    if (ex.isTimed) {
-      onOpenTimedSet()
-      return
-    }
+    if (ex.isTimed) { onOpenTimedSet(); return }
     const last = ex.sets[ex.sets.length - 1]
     setInitialValues(last ? prefillFromLast(last, ex) : emptyPending())
     setShowInput(true)
@@ -275,8 +254,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
   function handleLog(set: SessionSet) {
     onLogSet(set)
     setShowInput(false)
-    const duration = ex.defaultRestSeconds ?? defaultRest
-    onStartTimer(duration)
+    onStartTimer(ex.defaultRestSeconds ?? defaultRest)
   }
 
   function bwTypeLabel(): string {
@@ -296,44 +274,25 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
     <div className="exercise-card">
       <div className="exercise-card-header">
         <div>
-          <div style={{ fontWeight: 600, fontSize: 16 }}>
-            {ex.exerciseName}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            {typeLabel}
-          </div>
+          <div style={{ fontWeight: 600, fontSize: 16 }}>{ex.exerciseName}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{typeLabel}</div>
         </div>
         <button className="btn btn-ghost btn-icon btn-sm" onClick={onRemoveExercise} style={{ color: 'var(--text-muted)' }}>
           <TrashIcon />
         </button>
       </div>
-
       {ex.sets.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 0' }}>
           {ex.sets.map((s, i) => (
-            <SetRow
-              key={i}
-              set={s}
-              number={i + 1}
-              isDoubleComponent={ex.isDoubleComponent}
-              isBodyweight={ex.isBodyweight}
-              bodyweightType={ex.bodyweightType}
-              isTimed={ex.isTimed}
-            />
+            <SetRow key={i} set={s} number={i + 1} isDoubleComponent={ex.isDoubleComponent}
+              isBodyweight={ex.isBodyweight} bodyweightType={ex.bodyweightType} isTimed={ex.isTimed} />
           ))}
         </div>
       )}
-
       {showInput && (
-        <SetInput
-          ex={ex}
-          setNumber={ex.sets.length + 1}
-          onLog={handleLog}
-          onCancel={() => setShowInput(false)}
-          initialValues={initialValues}
-        />
+        <SetInput ex={ex} setNumber={ex.sets.length + 1} onLog={handleLog}
+          onCancel={() => setShowInput(false)} initialValues={initialValues} />
       )}
-
       <div style={{ display: 'flex', gap: 8, paddingTop: 8 }}>
         {!showInput && (
           <button className="btn btn-secondary btn-sm" style={{ flex: 1, gap: 6 }} onClick={handleAddSet}>
@@ -354,7 +313,7 @@ function ExerciseCard({ ex, onRemoveExercise, onLogSet, onRemoveLastSet, onStart
 export default function ActiveWorkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, addExercise, removeExercise, logSet, removeLastSet } = useActiveWorkout()
+  const { session, addExercise, removeExercise, reorderExercises, logSet, removeLastSet } = useActiveWorkout()
   const { start: startTimer } = useRestTimer()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [defaultRest, setDefaultRest] = useState(90)
@@ -362,8 +321,16 @@ export default function ActiveWorkout() {
   const contentRef = useRef<HTMLDivElement>(null)
   const processedLocationKey = useRef<string | null>(null)
 
+  const [aiKeys, setAiKeys] = useState<AiKeys>({})
+  const [isOptimizing, setIsOptimizing] = useState(false)
+  const [optimizeError, setOptimizeError] = useState<string | null>(null)
+  const [optimizeMsg, setOptimizeMsg] = useState<string | null>(null)
+
   useEffect(() => {
-    getSettings().then((s) => { if (s.defaultRestSeconds) setDefaultRest(s.defaultRestSeconds) })
+    getSettings().then((s) => {
+      if (s.defaultRestSeconds) setDefaultRest(s.defaultRestSeconds)
+      setAiKeys({ openRouterKey: s.aiOpenRouterKey, geminiKey: s.aiGeminiKey })
+    })
   }, [])
 
   useEffect(() => {
@@ -374,26 +341,20 @@ export default function ActiveWorkout() {
     }
   }, [session?.workoutId])
 
-  // If we arrive here from ExerciseCreator with a new exercise, auto-add it
   useEffect(() => {
     const state = location.state as { newExercise?: Exercise } | null
     if (state?.newExercise && session) {
       const ex = state.newExercise
       addExercise({
-        exerciseId: ex.id,
-        exerciseName: ex.name,
-        isBodyweight: ex.isBodyweight,
-        bodyweightType: ex.bodyweightType,
-        isDoubleComponent: ex.isDoubleComponent,
-        isTimed: ex.isTimed,
-        timedTargetSeconds: ex.timedTargetSeconds,
+        exerciseId: ex.id, exerciseName: ex.name, isBodyweight: ex.isBodyweight,
+        bodyweightType: ex.bodyweightType, isDoubleComponent: ex.isDoubleComponent,
+        isTimed: ex.isTimed, timedTargetSeconds: ex.timedTargetSeconds,
         defaultRestSeconds: ex.defaultRestTimerSeconds,
       })
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.state, location.pathname, session, addExercise, navigate])
 
-  // Handle return from TimedSetPage — guard with location.key so StrictMode double-invoke doesn't log twice
   useEffect(() => {
     const state = location.state as { timedSet?: { instanceId: string; set: SessionSet } } | null
     if (state?.timedSet && processedLocationKey.current !== location.key) {
@@ -403,32 +364,54 @@ export default function ActiveWorkout() {
     }
   }, [location.state, location.key, location.pathname, logSet, navigate])
 
-  // Redirect if no session
   useEffect(() => {
     if (!session) navigate('/log', { replace: true })
   }, [session, navigate])
 
   const elapsed = useElapsed(session?.startedAt ?? Date.now())
-
   if (!session) return null
 
   const totalSets = session.exercises.reduce((n, e) => n + e.sets.length, 0)
+  const unstartedCount = session.exercises.filter((e) => e.sets.length === 0).length
 
   function handleSelectExercise(ex: Exercise) {
     addExercise({
-      exerciseId: ex.id,
-      exerciseName: ex.name,
-      isBodyweight: ex.isBodyweight,
-      bodyweightType: ex.bodyweightType,
-      isDoubleComponent: ex.isDoubleComponent,
-      isTimed: ex.isTimed,
-      timedTargetSeconds: ex.timedTargetSeconds,
+      exerciseId: ex.id, exerciseName: ex.name, isBodyweight: ex.isBodyweight,
+      bodyweightType: ex.bodyweightType, isDoubleComponent: ex.isDoubleComponent,
+      isTimed: ex.isTimed, timedTargetSeconds: ex.timedTargetSeconds,
       defaultRestSeconds: ex.defaultRestTimerSeconds,
     })
-    // Scroll to bottom after adding
     setTimeout(() => {
       contentRef.current?.scrollTo({ top: contentRef.current.scrollHeight, behavior: 'smooth' })
     }, 100)
+  }
+
+  async function handleOptimizeOrder() {
+    if (!session) return
+    const unstarted = session.exercises.filter((e) => e.sets.length === 0)
+    if (unstarted.length < 2) return
+    setOptimizeError(null)
+    setOptimizeMsg(null)
+    setIsOptimizing(true)
+    try {
+      const orderInput = await buildExerciseOrderInput(unstarted.map((e) => e.exerciseId))
+      const newExerciseIds = await optimizeExerciseOrder(aiKeys, orderInput)
+      const usedInstances = new Set<string>()
+      const orderedInstanceIds = newExerciseIds
+        .map((eid) => {
+          const match = unstarted.find((e) => e.exerciseId === eid && !usedInstances.has(e.instanceId))
+          if (match) { usedInstances.add(match.instanceId); return match.instanceId }
+          return null
+        })
+        .filter((id): id is string => id !== null)
+      reorderExercises(orderedInstanceIds)
+      setOptimizeMsg('Order optimised')
+      setTimeout(() => setOptimizeMsg(null), 2500)
+    } catch (e) {
+      setOptimizeError((e as Error).message ?? 'AI reorder failed.')
+    } finally {
+      setIsOptimizing(false)
+    }
   }
 
   function handleFinish() {
@@ -438,6 +421,8 @@ export default function ActiveWorkout() {
     navigate('/log/complete')
   }
 
+  const hasAiKey = !!(aiKeys.openRouterKey || aiKeys.geminiKey)
+
   return (
     <>
       <div className="page" ref={contentRef}>
@@ -446,12 +431,7 @@ export default function ActiveWorkout() {
             <div style={{ fontWeight: 700, fontSize: 18 }}>{session.workoutName}</div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{elapsed} · {totalSets} sets</div>
           </div>
-          <button
-            className="btn btn-danger btn-sm"
-            onClick={handleFinish}
-          >
-            Finish
-          </button>
+          <button className="btn btn-danger btn-sm" onClick={handleFinish}>Finish</button>
         </div>
 
         <div className="page-content">
@@ -488,21 +468,14 @@ export default function ActiveWorkout() {
                   defaultRest={defaultRest}
                 />
               ))}
+
               <button
                 onClick={() => setPickerOpen(true)}
                 style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'transparent',
-                  border: '2px dashed var(--border)',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'var(--text-muted)',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
+                  width: '100%', padding: '12px', background: 'transparent',
+                  border: '2px dashed var(--border)', borderRadius: 'var(--radius-lg)',
+                  color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all var(--transition)',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--text-muted)')}
@@ -510,6 +483,26 @@ export default function ActiveWorkout() {
               >
                 <PlusIcon /> Add Exercise
               </button>
+
+              {/* Optimise order — below Add Exercise, only when ≥2 exercises are unstarted */}
+              {unstartedCount >= 2 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}>
+                  {optimizeMsg && <span style={{ fontSize: 12, color: 'var(--accent)' }}>{optimizeMsg}</span>}
+                  {optimizeError && <span style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 200, textAlign: 'center' }}>{optimizeError}</span>}
+                  {!optimizeMsg && !optimizeError && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={handleOptimizeOrder}
+                      disabled={isOptimizing || !hasAiKey}
+                      title={!hasAiKey ? 'Add an AI key in Settings to use this' : 'Optimise exercise order with AI'}
+                      style={{ gap: 5, fontSize: 12, opacity: !hasAiKey ? 0.4 : 1 }}
+                    >
+                      {isOptimizing ? <SpinIcon /> : <SortIcon />}
+                      {isOptimizing ? 'Optimising…' : 'Optimise order'}
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

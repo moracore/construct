@@ -1437,3 +1437,8 @@ input[type="range"].hsl-slider::-moz-range-thumb {
 input[type="range"].hsl-slider::-moz-range-track {
   background: transparent;
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

@@ -152,6 +152,11 @@ export default function Settings() {
   const [migrateStatus, setMigrateStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [aiOpenRouterKey, setAiOpenRouterKey] = useState('')
+  const [aiGeminiKey, setAiGeminiKey] = useState('')
+  const [showOpenRouterKey, setShowOpenRouterKey] = useState(false)
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
+
   useEffect(() => {
     getSettings().then((s) => {
       if (s.defaultRestSeconds) setRestSeconds(s.defaultRestSeconds)
@@ -166,6 +171,8 @@ export default function Settings() {
       setIgnoredMuscles(s.ignoredMuscles ?? [])
       setPresetMode(s.presetMode)
       setQuickCountsForStreak(s.quickExercisesCountForStreak === true)
+      setAiOpenRouterKey(s.aiOpenRouterKey ?? '')
+      setAiGeminiKey(s.aiGeminiKey ?? '')
     })
   }, [])
 
@@ -217,6 +224,18 @@ export default function Settings() {
     await saveSettings({ ...s, homePanelSlots: next })
   }
 
+
+  async function handleAiOpenRouterKey(val: string) {
+    setAiOpenRouterKey(val)
+    const s = await getSettings()
+    await saveSettings({ ...s, aiOpenRouterKey: val || undefined })
+  }
+
+  async function handleAiGeminiKey(val: string) {
+    setAiGeminiKey(val)
+    const s = await getSettings()
+    await saveSettings({ ...s, aiGeminiKey: val || undefined })
+  }
 
   async function handlePresetSwitch(mode: 'simple' | 'extensive' | 'custom') {
     setPresetMode(mode)
@@ -636,6 +655,57 @@ export default function Settings() {
                 {mode === 'simple' ? 'Simple' : mode === 'extensive' ? 'Extensive' : 'Custom'}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p className="section-title">AI Features</p>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Used for workout suggestions and exercise reordering. Keys are stored locally and sent only to your configured provider. OpenRouter is preferred; Gemini is used as fallback.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>OpenRouter Key</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type={showOpenRouterKey ? 'text' : 'password'}
+                value={aiOpenRouterKey}
+                onChange={(e) => setAiOpenRouterKey(e.target.value)}
+                onBlur={(e) => handleAiOpenRouterKey(e.target.value)}
+                placeholder="sk-or-v1-..."
+                style={{ flex: 1, padding: '7px 10px', fontSize: 13 }}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                onClick={() => setShowOpenRouterKey((v) => !v)}
+                style={{ color: 'var(--text-muted)', minWidth: 44 }}
+              >
+                {showOpenRouterKey ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>Gemini Key <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(fallback)</span></div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type={showGeminiKey ? 'text' : 'password'}
+                value={aiGeminiKey}
+                onChange={(e) => setAiGeminiKey(e.target.value)}
+                onBlur={(e) => handleAiGeminiKey(e.target.value)}
+                placeholder="AIza..."
+                style={{ flex: 1, padding: '7px 10px', fontSize: 13 }}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                onClick={() => setShowGeminiKey((v) => !v)}
+                style={{ color: 'var(--text-muted)', minWidth: 44 }}
+              >
+                {showGeminiKey ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
         </div>
 

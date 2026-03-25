@@ -130,4 +130,6 @@ export interface AppSettings {
   presetMode?: 'simple' | 'extensive' | 'custom'
   onboardingComplete?: boolean
   quickExercisesCountForStreak?: boolean
+  aiOpenRouterKey?: string
+  aiGeminiKey?: string
 }

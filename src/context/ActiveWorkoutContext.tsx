@@ -39,6 +39,7 @@ interface ActiveWorkoutContextValue {
   startSession: (s: Omit<ActiveSession, 'exercises' | 'startedAt'>) => void
   addExercise: (ex: Omit<SessionExercise, 'sets' | 'instanceId'>) => void
   removeExercise: (instanceId: string) => void
+  reorderExercises: (orderedInstanceIds: string[]) => void
   logSet: (instanceId: string, set: SessionSet) => void
   removeLastSet: (instanceId: string) => void
   clearSession: () => void
@@ -112,10 +113,27 @@ export function ActiveWorkoutProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const reorderExercises = useCallback((orderedInstanceIds: string[]) => {
+    setSession((prev) => {
+      if (!prev) return prev
+      const unstartedMap = new Map(
+        prev.exercises.filter((e) => e.sets.length === 0).map((e) => [e.instanceId, e])
+      )
+      const orderedUnstarted = orderedInstanceIds
+        .map((id) => unstartedMap.get(id))
+        .filter((e): e is SessionExercise => e !== undefined)
+      let unstartedIdx = 0
+      const newExercises = prev.exercises.map((e) =>
+        e.sets.length > 0 ? e : (orderedUnstarted[unstartedIdx++] ?? e)
+      )
+      return { ...prev, exercises: newExercises }
+    })
+  }, [])
+
   const clearSession = useCallback(() => setSession(null), [])
 
   return (
-    <ActiveWorkoutContext.Provider value={{ session, startSession, addExercise, removeExercise, logSet, removeLastSet, clearSession }}>
+    <ActiveWorkoutContext.Provider value={{ session, startSession, addExercise, removeExercise, reorderExercises, logSet, removeLastSet, clearSession }}>
       {children}
     </ActiveWorkoutContext.Provider>
   )

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getAllWorkouts, getQuickLogsByDate, saveQuickLog } from '../../db'
 import { useActiveWorkout } from '../../context/ActiveWorkoutContext'
@@ -303,7 +303,7 @@ export default function WorkoutSelector() {
                 </div>
               )}
 
-              {/* Input row — matches ActiveWorkout SetInput format */}
+              {/* Input row */}
               <div className="set-input-row">
                 <span className="set-number">Set {quickSets.length + 1}</span>
 
