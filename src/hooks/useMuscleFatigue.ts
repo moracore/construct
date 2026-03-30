@@ -230,21 +230,22 @@ function computeRawTotal(
     .reduce((s, v) => s + v, 0)
 }
 
-// Decayed effective volume — sigmoid curve over 18-day window
-// Days 0-4 retain most activation, day 6 = half, days 7-17 trail off
+// Decayed effective volume — sigmoid curve centred at `center` days ago
+// Window spans center*2+1 days; value at center = 50%, at center*2 ≈ 0
 function computeWindow(
   logMap: LogMap,
   exerciseMap: Map<string, Exercise>,
   userBodyweight?: number,
   quickLogMap?: QuickLogMap,
+  center = 4,
 ): Partial<Record<MuscleGroup, number>> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const accum: Partial<Record<MuscleGroup, number>> = {}
-  for (let d = 0; d < 18; d++) {
+  for (let d = 0; d < center * 2 + 1; d++) {
     const t = subtractDays(today, d)
     const dateKey = toISO(t)
-    const decay = 1 / (1 + Math.exp(d - 6))
+    const decay = 1 / (1 + Math.exp(d - center))
     const log = logMap[dateKey]
     if (log) {
       for (const logged of log.exercises) {
@@ -292,7 +293,8 @@ export function useMuscleFatigue(): FatigueResult {
       const todayISO = toISO(today)
 
       // ── Opacities — sigmoid-decayed window vs per-muscle weekly average ──
-      const currentRaw = computeWindow(logMap, exerciseMap, ubw, qlMap)
+      const sigmoidCenter = settings.sigmoidCenter ?? 4
+      const currentRaw = computeWindow(logMap, exerciseMap, ubw, qlMap, sigmoidCenter)
       const historicalVol = computeMusclePeriod(logMap, exerciseMap, 0, WEEKLY_AVG_WEEKS * 7, ubw, qlMap)
       const opacities: Partial<Record<MuscleGroup, number>> = {}
       for (const [mg, vol] of Object.entries(currentRaw) as [MuscleGroup, number][]) {

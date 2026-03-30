@@ -132,4 +132,5 @@ export interface AppSettings {
   quickExercisesCountForStreak?: boolean
   aiOpenRouterKey?: string
   aiGeminiKey?: string
+  sigmoidCenter?: number  // day at which body-image decay = 50% (2–7, default 4)
 }

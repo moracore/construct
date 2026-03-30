@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
-import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout, migrateDoubleComponentWeights } from '../db'
+import { getSettings, saveSettings, getAllDayLogs, saveDayLog, getAllExercises, saveExercise, getAllWorkouts, saveWorkout } from '../db'
 import { parseMarkdownLog } from '../db/parseMarkdown'
 import type { DayLog, Exercise, Workout, MuscleGroup, HomePanelWidget, HomeLayout } from '../types'
 import { DEFAULT_HOME_SLOTS, VALID_PANEL_WIDGETS } from '../types'
@@ -127,6 +127,7 @@ export default function Settings() {
   const [ignoredMuscles, setIgnoredMuscles] = useState<MuscleGroup[]>([])
   const [showMuscleModal, setShowMuscleModal] = useState(false)
   const [quickCountsForStreak, setQuickCountsForStreak] = useState(false)
+  const [sigmoidCenter, setSigmoidCenter] = useState(4)
 
   const [hSlider, setHSlider] = useState(() => slidersFromHex(accentColor)[0])
   const [sSlider, setSSlider] = useState(() => slidersFromHex(accentColor)[1])
@@ -149,7 +150,6 @@ export default function Settings() {
   const [presetMode, setPresetMode] = useState<'simple' | 'extensive' | 'custom' | undefined>(undefined)
   const [presetStatus, setPresetStatus] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<string | null>(null)
-  const [migrateStatus, setMigrateStatus] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [aiOpenRouterKey, setAiOpenRouterKey] = useState('')
@@ -162,6 +162,7 @@ export default function Settings() {
       if (s.defaultRestSeconds) setRestSeconds(s.defaultRestSeconds)
       if (s.userBodyweight)     setBodyweight(s.userBodyweight)
       setShowGhost(s.showGhostMuscles !== false)
+      setSigmoidCenter(s.sigmoidCenter ?? 4)
       const raw = s.homeLayout ?? (s as any).homePanel
       const layout: HomeLayout =
         raw === 'body-full' || raw === 'body-only' || raw === 'calendar-only' ? raw : 'body-full'
@@ -186,6 +187,12 @@ export default function Settings() {
     setBodyweight(val)
     const s = await getSettings()
     await saveSettings({ ...s, userBodyweight: val })
+  }
+
+  async function handleSigmoidCenterChange(val: number) {
+    setSigmoidCenter(val)
+    const s = await getSettings()
+    await saveSettings({ ...s, sigmoidCenter: val })
   }
 
   async function handleGhostToggle() {
@@ -592,6 +599,31 @@ export default function Settings() {
 
           <div className="divider" />
 
+          {/* Sigmoid drop-off — only relevant when body image is visible */}
+          {homeLayout !== 'calendar-only' && (
+            <>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 500 }}>Body Image Drop-off</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Day at which muscle fade hits 50% — day {sigmoidCenter}, clears by day {sigmoidCenter * 2}
+                </div>
+              </div>
+              <input
+                type="range"
+                min={2}
+                max={7}
+                step={1}
+                value={sigmoidCenter}
+                onChange={(e) => handleSigmoidCenterChange(Number(e.target.value))}
+                style={{ width: '100%', accentColor }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: -8 }}>
+                <span>2 days</span><span>7 days</span>
+              </div>
+              <div className="divider" />
+            </>
+          )}
+
           {/* Ghost inactive muscles */}
           <div className="row-between">
             <div>
@@ -741,23 +773,6 @@ export default function Settings() {
             />
           </div>
 
-          <div className="row-between">
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>Fix R/L Weights</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {migrateStatus ?? 'Backfill weights on old R/L logs'}
-              </div>
-            </div>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={async () => {
-                const count = await migrateDoubleComponentWeights()
-                setMigrateStatus(count > 0 ? `Fixed ${count} set${count !== 1 ? 's' : ''}` : 'Already up to date')
-              }}
-            >
-              Fix
-            </button>
-          </div>
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', paddingTop: 8 }}>

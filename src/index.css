@@ -1128,6 +1128,10 @@ input::placeholder {
 /* Muscle highlight — accent colour, opacity driven by volume */
 .body-muscle {
   background-color: var(--accent);
+  filter: drop-shadow(1px 0 0 var(--bg-primary))
+          drop-shadow(-1px 0 0 var(--bg-primary))
+          drop-shadow(0 1px 0 var(--bg-primary))
+          drop-shadow(0 -1px 0 var(--bg-primary));
 }
 
 /* Untrained muscle — pulses in the complementary hue (accent + 180°) */
@@ -1137,7 +1141,11 @@ input::placeholder {
 }
 
 .body-muscle-ghost {
-  filter: hue-rotate(180deg);
+  filter: hue-rotate(180deg)
+          drop-shadow(1px 0 0 var(--bg-primary))
+          drop-shadow(-1px 0 0 var(--bg-primary))
+          drop-shadow(0 1px 0 var(--bg-primary))
+          drop-shadow(0 -1px 0 var(--bg-primary));
   animation: muscle-ghost 3s ease-in-out infinite;
 }
 
