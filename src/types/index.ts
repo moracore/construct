@@ -74,6 +74,8 @@ export interface DayLog {
   workoutName: string
   exercises: LoggedExercise[]
   markdown: string
+  startTime?: string        // HH:MM local time
+  durationMinutes?: number  // undefined = unknown; >480 treated as invalid
   createdAt: number
   updatedAt: number
 }

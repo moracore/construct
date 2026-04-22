@@ -279,8 +279,21 @@ export function useMuscleFatigue(): FatigueResult {
       ])
 
       const exerciseMap = new Map(exercises.map((e) => [e.id, e]))
+      const exerciseNameMap = new Map(exercises.map((e) => [e.name.toLowerCase(), e]))
+
+      // Repair logs where exerciseId is missing or unresolvable — fall back to name lookup
+      const repairedLogs = logs.map((l) => ({
+        ...l,
+        exercises: l.exercises.map((le) => {
+          if (le.exerciseId && exerciseMap.has(le.exerciseId)) return le
+          const cleanName = le.exerciseName.replace(/\s*\((?:R\/L|L\/R|Timed)(?:,\s*(?:R\/L|L\/R|Timed))*\)\s*$/i, '').trim().toLowerCase()
+          const resolved = exerciseNameMap.get(cleanName)
+          return resolved ? { ...le, exerciseId: resolved.id } : le
+        }),
+      }))
+
       const logMap: LogMap = {}
-      logs.forEach((l) => { logMap[l.date] = l })
+      repairedLogs.forEach((l) => { logMap[l.date] = l })
 
       const qlMap: QuickLogMap = {}
       quickLogs.forEach((q) => {
@@ -328,16 +341,16 @@ export function useMuscleFatigue(): FatigueResult {
 
       // ── Weekly frequency — avg sessions/week, last 3 weeks ───────────────
       const cutoff21ISO = toISO(subtractDays(today, 21))
-      const weeklyFrequency = logs.filter(l => l.date >= cutoff21ISO).length / 3
+      const weeklyFrequency = repairedLogs.filter(l => l.date >= cutoff21ISO).length / 3
 
       // ── Rest days — calendar days since last session ──────────────────────
-      const lastLogDate = logs.reduce<string | null>(
+      const lastLogDate = repairedLogs.reduce<string | null>(
         (best, l) => (!best || l.date > best ? l.date : best), null
       )
       const restDays = lastLogDate ? Math.max(0, dateDiffDays(todayISO, lastLogDate)) : 0
 
       // ── Current streak — consecutive Mon–Sun weeks with ≥1 session ────────
-      const logDateSet = new Set(logs.map(l => l.date))
+      const logDateSet = new Set(repairedLogs.map(l => l.date))
       if (quickCountsForStreak) {
         quickLogs.forEach(q => logDateSet.add(q.date))
       }
@@ -346,7 +359,7 @@ export function useMuscleFatigue(): FatigueResult {
       // ── Last session ─────────────────────────────────────────────────────
       let lastSession: LastSessionInfo | null = null
       if (lastLogDate) {
-        const lastLog = logs.find(l => l.date === lastLogDate)
+        const lastLog = repairedLogs.find(l => l.date === lastLogDate)
         if (lastLog) {
           let totalVolume = 0
           for (const logged of lastLog.exercises) {

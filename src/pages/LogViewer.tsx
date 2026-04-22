@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getDayLog, saveDayLog, deleteDayLog } from '../db'
-import { parseMarkdownLog } from '../db/parseMarkdown'
+import { getDayLog, saveDayLog, deleteDayLog, getAllExercises } from '../db'
+import { parseMarkdownLog, formatDurationMins } from '../db/parseMarkdown'
 import type { DayLog } from '../types'
 
 const BackIcon = () => (
@@ -40,14 +40,24 @@ export default function LogViewer() {
   async function handleSave() {
     if (!log) return
     setSaving(true)
-    const parsed = parseMarkdownLog(markdown)
+    const [parsed, allExercises] = await Promise.all([
+      Promise.resolve(parseMarkdownLog(markdown)),
+      getAllExercises(),
+    ])
+    const libraryNameToId = new Map(allExercises.map((e) => [e.name.toLowerCase(), e.id]))
     const updated: DayLog = {
       ...log,
       markdown,
+      date: parsed.date || log.date,
       workoutName: parsed.workoutName || log.workoutName,
+      startTime: parsed.startTime ?? undefined,
+      durationMinutes: parsed.durationMinutes ?? undefined,
       exercises: parsed.exercises.map((e) => ({
         ...e,
-        exerciseId: log.exercises.find((le) => le.exerciseName === e.exerciseName)?.exerciseId ?? '',
+        exerciseId:
+          log.exercises.find((le) => le.exerciseName === e.exerciseName)?.exerciseId ||
+          libraryNameToId.get(e.exerciseName.toLowerCase()) ||
+          '',
       })),
       updatedAt: Date.now(),
     }
@@ -88,7 +98,9 @@ export default function LogViewer() {
         <button className="btn btn-ghost btn-icon" onClick={() => navigate('/logs')}><BackIcon /></button>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{log.workoutName}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{dayName} · {dateLabel}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {dayName} · {dateLabel} · {log.startTime || '-'} · {formatDurationMins(log.durationMinutes)}
+          </div>
         </div>
         <button className="btn btn-ghost btn-icon" onClick={handleDelete} style={{ color: 'var(--danger)' }}>
           <TrashIcon />

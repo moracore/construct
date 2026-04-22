@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useActiveWorkout, type SessionExercise, type SessionSet } from '../../context/ActiveWorkoutContext'
 import { getAllDayLogs, getAllExercises, saveDayLog } from '../../db'
+import { parseMarkdownLog, formatDurationMins } from '../../db/parseMarkdown'
 import type { DayLog, LoggedExercise, ExerciseSet, MuscleGroup } from '../../types'
 import BodyProjection from '../../components/BodyProjection'
 
@@ -9,8 +10,17 @@ function generateId() {
   return `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+function dateFromTimestamp(ts: number): string {
+  const d = new Date(ts)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function formatTime(ts: number): string {
+  const d = new Date(ts)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 function formatDuration(ms: number) {
@@ -50,10 +60,16 @@ function sessionSetToExSet(s: SessionSet): ExerciseSet {
   }
 }
 
-function sessionToMarkdown(session: { workoutName: string; exercises: SessionExercise[] }, date: string): string {
+function sessionToMarkdown(
+  session: { workoutName: string; exercises: SessionExercise[] },
+  date: string,
+  startTime: string,
+  durationMins: number,
+): string {
   const d = new Date(date + 'T00:00:00')
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-  let md = `# ${date} - ${days[d.getDay()]} - ${session.workoutName}\n`
+  const durStr = formatDurationMins(durationMins)
+  let md = `# ${date} - ${days[d.getDay()]} - ${session.workoutName} · ${startTime} · ${durStr}\n`
   for (const ex of session.exercises) {
     if (ex.sets.length === 0) continue
     const suffixes = [ex.isDoubleComponent ? 'R/L' : null, ex.isTimed ? 'Timed' : null].filter(Boolean)
@@ -145,8 +161,10 @@ export default function CompletionSummary() {
 
   useEffect(() => {
     if (!session) { navigate('/log', { replace: true }); return }
-    const date = todayISO()
-    setMarkdown(sessionToMarkdown(session, date))
+    const date = dateFromTimestamp(session.startedAt)
+    const startTime = formatTime(session.startedAt)
+    const durationMins = Math.round((Date.now() - session.startedAt) / 60000)
+    setMarkdown(sessionToMarkdown(session, date, startTime, durationMins))
 
     Promise.all([getAllDayLogs(), getAllExercises()]).then(([logs, exercises]) => {
       setPRs(detectPRs(session.exercises, logs))
@@ -180,7 +198,8 @@ export default function CompletionSummary() {
   async function handleSave() {
     if (!session) return
     setSaving(true)
-    const date = todayISO()
+    const parsed = parseMarkdownLog(markdown)
+    const date = parsed.date || dateFromTimestamp(session.startedAt)
     const loggedExercises: LoggedExercise[] = session.exercises
       .filter((ex) => ex.sets.length > 0)
       .map((ex) => ({
@@ -191,9 +210,11 @@ export default function CompletionSummary() {
     const dayLog: DayLog = {
       id: generateId(),
       date,
-      workoutName: session.workoutName,
+      workoutName: parsed.workoutName || session.workoutName,
       exercises: loggedExercises,
       markdown,
+      startTime: parsed.startTime ?? undefined,
+      durationMinutes: parsed.durationMinutes ?? undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }

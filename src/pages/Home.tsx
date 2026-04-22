@@ -6,6 +6,7 @@ import type { DayLog, HomePanelWidget, HomeLayout, MuscleGroup } from '../types'
 import { DEFAULT_HOME_SLOTS, VALID_PANEL_WIDGETS } from '../types'
 import BodyProjection from '../components/BodyProjection'
 import { useMuscleFatigue, type FatigueResult } from '../hooks/useMuscleFatigue'
+import { WidgetSync } from '../plugins/widgetSync'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -349,6 +350,10 @@ export default function Home() {
       const qm: Record<string, number> = {}
       quickLogs.forEach((q) => { qm[q.date] = (qm[q.date] ?? 0) + 1 })
       setQuickCountMap(qm)
+
+      // Push calendar data to the Android home screen widget
+      const entries = logs.map((l) => ({ date: l.date, color: wm[l.workoutName] ?? '#888888' }))
+      WidgetSync.syncCalendar({ entries }).catch(() => { /* not on Android / no widget */ })
     })
   }, [])
 
@@ -397,7 +402,7 @@ export default function Home() {
             style={
             homeLayout === 'calendar-only' ? { height: 'calc(100dvh - var(--nav-height))' }
             : homeLayout === 'body-full'   ? { height: 'calc(100dvh * 6 / 9)' }
-            : undefined
+: undefined
           }
           >
             {header}
@@ -495,7 +500,9 @@ export default function Home() {
       {showBottom && homeLayout !== 'body-only' && (
         <div
           className="home-bottom"
-          style={homeLayout === 'body-full' ? { height: 'calc(100dvh * 3 / 9)' } : undefined}
+          style={
+            homeLayout === 'body-full' ? { height: 'calc(100dvh * 3 / 9)' } : undefined
+          }
         >
           {slotCount > 0 && (
             <div className="home-metrics">
