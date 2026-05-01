@@ -730,11 +730,11 @@ input::placeholder {
 .home-metrics {
   display: flex;
   flex-direction: column;
-  padding: 8px;
+  padding: 0;
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
   height: 100%;
-  gap: 8px;
+  gap: 0;
 }
 
 .metric-card {
@@ -743,9 +743,9 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   position: relative;
   overflow: hidden;
 }
